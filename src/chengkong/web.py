@@ -21,14 +21,24 @@ from .incremental import DependencyEngine
 from .evidence import query_evidence,apply_evidence_result
 from .multimodal import MaterialAgent,MockAdapter,configured_adapter
 from .presentation import spatial_view,event_timeline,export_result
+from .recovery import (InstanceLock,RuntimeLedger,runtime_identity,assert_binding,
+                       snapshot_session,restore_session,PersistentServiceAdapter)
 
 
 class SimulationApp:
-    def __init__(self,example,db_dir,model_dir=None,project_root=None):
+    def __init__(self,example,db_dir,model_dir=None,project_root=None,initial_policy=None):
+        if not Path(example).is_file():raise ValueError('recovery_input_missing: supply the original input file or an exact copy')
         self.raw=load_example(example)
         self.db_dir=Path(db_dir);self.db_dir.mkdir(parents=True,exist_ok=True)
         self.root=Path(project_root or Path(example).resolve().parent.parent)
         self.lock=threading.RLock();self.sessions={}
+        self.initial_policy=copy.deepcopy(initial_policy)
+        if initial_policy is not None:
+            if not isinstance(initial_policy,dict):raise ValueError('initial_policy_must_be_object')
+            if 'mode' in initial_policy and initial_policy['mode'] not in ('conservative','dynamic_windows'):
+                raise ValueError('unsupported_initial_planning_mode')
+            if 'action_order' in initial_policy and sorted(initial_policy['action_order'])!=['delay','detour','retain']:
+                raise ValueError('initial_action_order_requires_retain_delay_detour_once_each')
         self.service_adapter=None
         self.model_bundle=None;self.model_load_status={'status':'not_loaded'}
         if model_dir:
@@ -39,30 +49,77 @@ class SimulationApp:
             except (OSError,ValueError,ImportError,KeyError) as exc:
                 self.model_load_status={'status':'not_loaded','reason':str(exc)}
         self.scenarios={s['id']:s for s in self.raw['scenario_definitions_for_simulator_only']}
+        self.binding=runtime_identity(example,model_dir,self.model_bundle)
+        self.instance_lock=InstanceLock(self.db_dir)
+        try:
+            self.runtime_ledger=RuntimeLedger(self.db_dir/'_runtime.sqlite3',self.binding)
+            self.active_scenario=self.runtime_ledger.active_scenario()
+            if self.active_scenario and self.active_scenario not in self.scenarios:
+                raise ValueError('recovery_active_scenario_missing_from_input')
+        except BaseException:
+            self.instance_lock.close();raise
+        self.closed=False
+
+    def _checkpoint(self,session):
+        world=session['store'].current_world()
+        if session['result'] is not None and session['result']['world']!=world:
+            session['result']=None
+        session['store'].checkpoint(self.binding,snapshot_session(session),world.get('state_revision',1))
+
+    def close(self):
+        """Flush completed local workflows and release this directory's lock."""
+        with self.lock:
+            if self.closed:return
+            try:
+                for session in self.sessions.values():self._checkpoint(session)
+            finally:
+                self.closed=True;self.instance_lock.close()
 
     def _session(self,scenario):
+        if self.closed:raise ValueError('simulation_app_closed')
         if scenario not in self.scenarios:raise ValueError('unknown_scenario')
         if scenario not in self.sessions:
             store=PlanStore(self.db_dir/(scenario+'.sqlite3'))
+            initialized=False
             try:store.current_world()
             except ValueError:
-                initial=visible_world(self.raw,scenario,60)
+                initial=visible_world(self.raw,scenario,self.raw['observed_snapshot']['as_of_s'])
                 initial['model_version']=self.model_bundle.version if self.model_bundle else 'none'
+                if self.initial_policy is not None:
+                    initial['planning_policy']=dict(initial.get('planning_policy',{}),**copy.deepcopy(self.initial_policy))
                 store.initialize(initial)
+                initialized=True
             current=store.current_world()
             active_version=self.model_bundle.version if self.model_bundle else 'none'
             if current['model_version']!=active_version:
-                updated=copy.deepcopy(current);updated['model_version']=active_version
-                updated['environment_version']+=1
-                store.replace_world(updated,current.get('state_revision',1))
-            self.sessions[scenario]={'store':store,'engine':DependencyEngine(),'agent':MaterialAgent(),
+                raise ValueError('recovery_model_version_mismatch: restore matching model; use a new db-dir to change policy')
+            session={'store':store,'engine':DependencyEngine(),'agent':MaterialAgent(),
                                      'result':None,'candidates':{},'evidence_results':[],'learned':False,'inflight':False,
                                      'importer':None,'import_audit':[],'field_audit':[],'field_requests':{}}
+            checkpoint=store.load_checkpoint(self.binding)
+            if checkpoint is None and not initialized:
+                raise ValueError('recovery_binding_missing: legacy database preserved; back it up and use a new db-dir')
+            status='new_session'
+            if checkpoint:
+                restore_session(session,checkpoint['payload']);status='restored'
+                if checkpoint['state_revision']!=current.get('state_revision',1) or (
+                        session['result'] is not None and session['result']['world']!=current):
+                    session['result']=None;session['candidates']={};status='restored_with_result_invalidated'
+            session['recovery_status']={'status':status,'single_instance':True,
+                'checkpoint_revision':checkpoint['state_revision'] if checkpoint else current.get('state_revision',1),
+                'binding':copy.deepcopy(self.binding),'pending_workflows_persisted':True,
+                'initial_policy_status':'applied_to_new_session' if initialized and self.initial_policy is not None else
+                                        'restored_policy_preserved' if checkpoint else 'input_policy_preserved',
+                'failure_policy':'mismatched inputs/models/rules/runtime rejected; stale results recomputed'}
+            if initialized:self._checkpoint(session)
+            # Publish only after every binding/payload check succeeds. A failed
+            # first request must not leave an unchecked cache for the next one.
+            self.sessions[scenario]=session
         return self.sessions[scenario]
 
     def _analyze(self,session):
         world=session['store'].current_world()
-        result=analyze_world(world,engine=session['engine'],inflight=session['inflight'],
+        result=analyze_world(world,engine=session['engine'],inflight=session['inflight'],measure=True,
                              learned=session['learned'],model_bundle=self.model_bundle,
                              existing_candidates=list(session['candidates'].values()),
                              planning_budget={'max_orders':12,'max_searches':96,'max_expansions':10000,'timeout_s':5})
@@ -76,6 +133,8 @@ class SimulationApp:
         with self.lock:
             session=self._session(scenario)
             if refresh or session['result'] is None:self._analyze(session)
+            self._checkpoint(session)
+            self.runtime_ledger.set_active(scenario);self.active_scenario=scenario
             # Only simulator-released events ever reach result.world. No raw
             # scenario definitions or future evidence are returned to the client.
             return {'result':session['result'],'saved_candidates':list(session['candidates'].values())[-20:],
@@ -85,6 +144,7 @@ class SimulationApp:
                     'spatial_view':spatial_view(session['result']['world']),
                     'timeline':event_timeline(session['result']['world'],session['store'].history()),
                     'model_load_status':self.model_load_status,
+                    'recovery_status':session['recovery_status'],
                     'history':[{'id':h['id'],'kind':h['kind'],'as_of_s':h.get('after',{}).get('as_of_s'),
                                 'environment_version':h.get('after',{}).get('environment_version'),
                                 'reservation_version':h.get('after',{}).get('reservation_version')}
@@ -135,7 +195,7 @@ class SimulationApp:
             session=self._session(scenario)
             if response is not None:adapter=MockAdapter(response)
             else:
-                if self.service_adapter is None:self.service_adapter=configured_adapter(self.root)
+                if self.service_adapter is None:self.service_adapter=PersistentServiceAdapter(configured_adapter(self.root),self.runtime_ledger)
                 adapter=self.service_adapter
             outcome=session['agent'].prepare(session['store'].current_world(),records,adapter)
             if session['result'] is None:self._analyze(session)
@@ -185,8 +245,15 @@ class SimulationApp:
         with self.lock:
             session=self._session(scenario)
             if session['result'] is None:self._analyze(session)
-            return export_result(session['result'],session['store'].history(),
+            output=export_result(session['result'],session['store'].history(),
                                  material_audit=session['import_audit'],field_audit=session['field_audit'])
+            output['recovery_status']=copy.deepcopy(session['recovery_status'])
+            output['pending_workflows']={'agent_proposals':copy.deepcopy(session['agent'].proposals),
+                'import_proposals':copy.deepcopy(session['importer'].proposals) if session['importer'] else {},
+                'field_requests':copy.deepcopy(session['field_requests']),
+                'evidence_audit':copy.deepcopy(session['evidence_results']),
+                'agent_audit':copy.deepcopy(session['agent'].audit)}
+            return output
 
     def compare(self,scenario):
         with self.lock:
@@ -256,6 +323,28 @@ class SimulationApp:
         # A fixed, identified synthetic sample; never arbitrary filesystem reads.
         return json.loads((self.root/'examples/imports/construction_delay.json').read_text(encoding='utf-8'))
 
+    def policy(self,scenario,mode,action_policy):
+        """Explicit strategy change invalidates older candidate assumptions."""
+        if mode not in ('conservative','dynamic_windows'):raise ValueError('unsupported_planning_mode')
+        if action_policy not in ('legacy','keep_detour'):raise ValueError('unsupported_action_policy')
+        with self.lock:
+            session=self._session(scenario);world=session['store'].current_world()
+            policy=dict(world.get('planning_policy',{}),mode=mode,
+                action_order=['retain','detour','delay'] if action_policy=='keep_detour' else ['retain','delay','detour'])
+            if policy!=world.get('planning_policy'):
+                updated=copy.deepcopy(world);updated['planning_policy']=policy
+                updated['environment_version']+=1
+                session['store'].replace_world(updated,world.get('state_revision',1))
+                return self.state(scenario,True)
+            return self.state(scenario)
+
+    def operation_timeline(self,scenario,candidate_id=None):
+        from .explanations import operation_timeline
+        with self.lock:
+            session=self._session(scenario)
+            if session['result'] is None:self._analyze(session)
+            return operation_timeline(session['result'],candidate_id)
+
 
 def make_server(app,host='127.0.0.1',port=8765):
     if host not in ('127.0.0.1','localhost','::1'):raise ValueError('only_loopback_listening_is_supported')
@@ -275,14 +364,15 @@ def make_server(app,host='127.0.0.1',port=8765):
             try:
                 parsed=urllib.parse.urlparse(self.path);query=urllib.parse.parse_qs(parsed.query)
                 scenario=query.get('scenario',['end_unconfirmed'])[0]
-                if parsed.path=='/api/scenarios':return self._json({'scenarios':list(app.scenarios),'data_kind':'synthetic'})
+                if parsed.path=='/api/scenarios':return self._json({'scenarios':list(app.scenarios),'active_scenario':app.active_scenario,'data_kind':'synthetic'})
                 if parsed.path=='/api/state':return self._json(app.state(scenario))
                 if parsed.path=='/api/replay':return self._json(app.replay(scenario,int(query['id'][0])))
                 if parsed.path=='/api/view':return self._json(app.view(scenario,float(query['time_s'][0]) if 'time_s' in query else None))
+                if parsed.path=='/api/operations':return self._json(app.operation_timeline(scenario,query.get('candidate_id',[None])[0]))
                 if parsed.path=='/api/export':return self._json(app.export(scenario))
                 if parsed.path=='/api/template':return self._json(app.template())
                 if parsed.path=='/health':return self._json({'status':'ok','flight_control_connected':False})
-                filename={'/':'index.html','/app.js':'app.js','/round3.js':'round3.js','/style.css':'style.css'}.get(parsed.path)
+                filename={'/':'index.html','/app.js':'app.js','/round3.js':'round3.js','/round4.js':'round4.js','/style.css':'style.css'}.get(parsed.path)
                 if filename is None:return self._json({'status':'not_found'},404)
                 data=(static/filename).read_bytes()
                 self.send_response(200);self.send_header('Content-Type',(mimetypes.guess_type(filename)[0] or 'text/plain')+'; charset=utf-8')
@@ -307,12 +397,17 @@ def make_server(app,host='127.0.0.1',port=8765):
                 if self.path=='/api/material':return self._json(app.material(scenario,body['records'],body.get('mock_response')))
                 if self.path=='/api/material/apply':return self._json(app.accept_material(scenario,body['proposal_id']))
                 if self.path=='/api/compare':return self._json(app.compare(scenario))
+                if self.path=='/api/policy':return self._json(app.policy(scenario,body['mode'],body['action_policy']))
                 if self.path=='/api/field/query':return self._json(app.field_query(scenario,body.get('object_id'),body.get('field'),body.get('request_id'),body.get('content'),body.get('format','json'),body.get('metadata')))
                 if self.path=='/api/import':return self._json(app.import_material(scenario,body['content'],body.get('format','json'),body.get('metadata')))
                 if self.path=='/api/import/apply':return self._json(app.accept_import(scenario,body['proposal_id'],body.get('resolutions')))
                 return self._json({'status':'not_found'},404)
             except (ValueError,KeyError,TypeError,OSError) as exc:self._json({'status':'request_rejected','reason':str(exc)},400)
-    return ThreadingHTTPServer((host,port),Handler)
+    class SimulationServer(ThreadingHTTPServer):
+        def server_close(self):
+            try:super().server_close()
+            finally:app.close()
+    return SimulationServer((host,port),Handler)
 
 
 def main(argv=None):
@@ -321,8 +416,13 @@ def main(argv=None):
     parser.add_argument('--host',default='127.0.0.1');parser.add_argument('--port',type=int,default=8765)
     parser.add_argument('--db-dir',default='runs/web')
     parser.add_argument('--model-dir',default=None)
+    parser.add_argument('--planning-mode',choices=['conservative','dynamic_windows'])
+    parser.add_argument('--action-policy',choices=['legacy','keep_detour'])
     args=parser.parse_args(argv)
-    app=SimulationApp(args.input,args.db_dir,args.model_dir)
+    policy={}
+    if args.planning_mode:policy['mode']=args.planning_mode
+    if args.action_policy:policy['action_order']=['retain','detour','delay'] if args.action_policy=='keep_detour' else ['retain','delay','detour']
+    app=SimulationApp(args.input,args.db_dir,args.model_dir,initial_policy=policy or None)
     server=make_server(app,args.host,args.port)
     print(f'城空智护 local: http://{args.host}:{server.server_port}  synthetic simulation only',flush=True)
     try:server.serve_forever()

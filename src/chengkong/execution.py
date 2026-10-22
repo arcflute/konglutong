@@ -78,7 +78,18 @@ def restore_full_task(original,suffix,context):
     result['trajectory']=copy.deepcopy(state['frozen_prefix'])+copy.deepcopy(suffix['trajectory'][1:])
     result['planning_energy_used']=state['energy_used']+suffix.get('planning_energy_used',0.)
     result['execution_resume_at_s']=context['at_s']
-    # Full history retains its actual takeoff/ground wait metadata.
+    # The frozen prefix may still be on the ground. In that case suffix
+    # maintenance changes a future takeoff; retaining old wait metadata would
+    # disagree with the reconstructed full trajectory even though the prefix
+    # itself was preserved. Derive metadata from the actual complete path.
+    actual=result['trajectory'][0]['time_s']
+    for a,b in zip(result['trajectory'],result['trajectory'][1:]):
+        if b['position_m'][2]>0:
+            actual=a['time_s'];break
+    result['actual_departure_time_s']=actual
+    result.pop('ground_wait_interval_s',None)
+    if actual>result['trajectory'][0]['time_s']+EPS:
+        result['ground_wait_interval_s']=[result['trajectory'][0]['time_s'],actual]
     return result
 
 

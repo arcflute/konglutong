@@ -57,7 +57,7 @@ def _candidate(world,constraints,tasks,mode,searches,affected,history,context,in
 
 def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execution_context=None,planning_hints=None,ranking_hook=None):
     from .planning import search_task,_ground_departures,_geometry_bounds
-    from .verification import verify_candidate
+    from .verification import verify_candidate, _task_requirements
     from .execution import validate_context,suffix_task,restore_full_task
     diagnostics=[] if diagnostics is None else diagnostics
     config=DEFAULT_BUDGET | (budget or {});start=time.monotonic()
@@ -77,13 +77,36 @@ def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execut
     joint=check_joint_tasks(world['tasks'],world,world['as_of_s'] if execution_context else None)
     affected={t['id'] for t in world['tasks'] if _future_conflicts(baseline[t['id']],at)}
     affected.update(tid for c in _future_conflicts(joint,at) for tid in c.get('task_ids',[]))
+    # Requirements can invalidate an otherwise geometrically clear task. These
+    # must join the repair set before candidate generation, not only at review.
+    for task in world['tasks']:
+        violations,unchecked,_=_task_requirements(task,task,dict(world,_candidate_tasks=world['tasks']),execution_context)
+        if unchecked:
+            diagnostics.append({'status':'incomplete_task_requirement_information','failure_class':'information_insufficient',
+                'task_id':task['id'],'unchecked':unchecked})
+            return []
+        if violations:
+            if execution_context and execution_context['tasks'][task['id']]['status']=='completed':
+                diagnostics.append({'status':'historical_task_requirement_violation','task_id':task['id'],
+                    'violations':violations,'action':'cannot_rewrite_executed_prefix'})
+            else:
+                affected.add(task['id'])
+                diagnostics.append({'status':'repair_set_requirement_expanded','task_id':task['id'],'violations':violations})
+    # Reuse energy/admission depends on the complete aircraft chain. Reserving
+    # only a changed successor silently treated it as a fresh full battery.
+    aircraft={t['aircraft_id'] for t in world['tasks'] if t['id'] in affected}
+    closure={t['id'] for t in world['tasks'] if t['aircraft_id'] in aircraft}
+    if closure-affected:
+        diagnostics.append({'status':'repair_set_aircraft_chain_expanded','added_task_ids':sorted(closure-affected)})
+        affected.update(closure)
     if joint['unchecked']:
         diagnostics.append({'status':'incomplete_joint_resource_information','failure_class':'information_insufficient','unchecked':joint['unchecked']});return []
     original={t['id']:t for t in world['tasks']}
     if execution_context is None and any(original[t]['departure_time_s']<world['as_of_s'] for t in affected):
         diagnostics.append({'status':'needs_operational_review_started_task','action':'use replan_inflight for software-only frozen-prefix maintenance'});return []
     modes=['retain'] if not affected else ['delay','detour']
-    hints=planning_hints or {}
+    hints=dict(planning_hints or {})
+    hints.setdefault('action_order',world.get('planning_policy',{}).get('action_order',[]))
     if hints.get('action_order'):
         modes.sort(key=lambda x:(hints['action_order'].index(x) if x in hints['action_order'] else len(hints['action_order'])))
     proposals=[{'id':f'proposal-{mode}','action':mode,'task_ids':sorted(affected)} for mode in modes]
@@ -97,7 +120,7 @@ def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execut
             else:diagnostics.append({'status':'invalid_ranking_hook_order_rule_fallback'})
         except Exception as exc:
             diagnostics.append({'status':'ranking_hook_failed_rule_fallback','reason':str(exc)})
-    candidates=[];expansion_history=[]
+    candidates=[];expansion_history=[];first_feasible_seconds=None;search_seconds=0.;review_seconds=0.;candidate_found_seconds={}
     for proposal_index,proposal in enumerate(proposals):
         mode_order_start=orders_used;mode_call_start=calls
         mode_order_limit=max(1,config['max_orders']//len(proposals))
@@ -115,6 +138,12 @@ def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execut
                 order_base.sort(key=lambda tid:(ranking.get(tid,len(ranking)),original[tid]['priority'],tid))
             orders=itertools.permutations(order_base) if repair else [()]
             for order in orders:
+                # Priority permutations cannot reverse continuous same-aircraft
+                # missions. Different aircraft still receive finite backtracking.
+                if any(original[left]['aircraft_id']==original[right]['aircraft_id'] and
+                       original[left]['departure_time_s']>original[right]['departure_time_s']
+                       for i,left in enumerate(order) for right in order[i+1:]):
+                    continue
                 if orders_used>=config['max_orders'] or orders_used-mode_order_start>=mode_order_limit:
                     diagnostics.append({'status':'cooperative_budget_exhausted','failure_class':'search_budget_exhausted','budget_dimension':'max_orders'});break
                 if time.monotonic()>=mode_deadline:
@@ -141,8 +170,10 @@ def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execut
                         if minimum+source['departure_time_s']>source['deadline_s']:
                             attempts.append({'status':'proven_infeasible_necessary_condition','proof':'mandatory_service_duration_exceeds_available_time'});break
                         calls+=1
+                        search_tick=time.monotonic()
                         result=search_task(source,world,constraints,planned,allow_detour=mode=='detour',
                             start_after_s=departure,max_expansions=config['max_expansions'],timeout_s=max(0.,mode_deadline-time.monotonic()))
+                        search_seconds+=time.monotonic()-search_tick
                         attempts.append({k:v for k,v in result.items() if k!='task'})
                         if result['status']=='found':found.append(result)
                     diagnostics.append({'mode':mode,'task_id':tid,'priority_order':list(order),'attempts':attempts,'order_attempt':orders_used})
@@ -170,9 +201,13 @@ def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execut
                 candidate['search_priority_order']=list(order)
                 if ranking_info is not None:
                     candidate['ranking_source']='configured_learning_proposal_order';candidate['proposal_ranking']=ranking_info
+                review_tick=time.monotonic()
                 review=verify_candidate(candidate,world,constraints)
+                review_seconds+=time.monotonic()-review_tick
                 candidate['review']=review;candidate['status']=review['status']
                 if review['feasible']:
+                    if first_feasible_seconds is None:first_feasible_seconds=time.monotonic()-start
+                    candidate_found_seconds[candidate['id']]=time.monotonic()-start
                     candidates.append(candidate)
                     diagnostics.append({'status':'cooperative_order_succeeded','mode':mode,'priority_order':list(order),'order_attempt':orders_used})
                     break
@@ -186,5 +221,7 @@ def cooperative_candidates(world,constraints,diagnostics=None,budget=None,execut
         candidate['selection_reason']=('Hard constraints passed; minimum lexicographic stability cost among generated and checked candidates.'
             if index==0 else 'Hard constraints passed; larger lexicographic stability cost than the recommended generated candidate.')
     diagnostics.append({'status':'bounded_cooperative_search_summary','budget':config,'search_calls':calls,'order_attempts':orders_used,
-        'feasible_candidates':len(candidates),'global_optimum_proven':False,'search_complete':False})
+        'feasible_candidates':len(candidates),'global_optimum_proven':False,'search_complete':False,
+        'first_feasible_seconds':first_feasible_seconds,'candidate_found_seconds':candidate_found_seconds,'search_seconds':search_seconds,'independent_review_seconds':review_seconds,
+        'elapsed_seconds':time.monotonic()-start,'action_order':[p['action'] for p in proposals]})
     return candidates

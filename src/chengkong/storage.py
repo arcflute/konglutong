@@ -6,7 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .analysis import pad_reservations
+from .analysis import check_joint_tasks
 from .verification import verify_candidate
 from .world import generate_constraints
 from .contracts import validate_world
@@ -14,6 +14,20 @@ from .contracts import validate_world
 
 def _json(value):
     return json.dumps(value,ensure_ascii=False,sort_keys=True,allow_nan=False)
+
+
+def _reservation_snapshot(report):
+    """Persist the same complete resource ledger used by the joint reviewer.
+
+    Initial or event-invalidated plans may conflict; preserving their actual
+    occupancy is necessary. Check status is recorded separately from the rows,
+    and does not imply that an initial/current plan was approved for execution.
+    """
+    return {'schema_version':'reservation-snapshot-v2',
+            'reservations':copy.deepcopy(report['reservations']),
+            'joint_check_status':report['status'],'checks_completed':not report['unchecked'],
+            'unchecked':copy.deepcopy(report['unchecked']),
+            'scope':'pads, named ground waiting areas, and modeled same-aircraft turnaround/charging occupancy'}
 
 
 class PlanStore:
@@ -25,6 +39,7 @@ class PlanStore:
             db.execute('CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS proposals (id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS decisions (id INTEGER PRIMARY KEY, state_revision INTEGER NOT NULL, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS session_checkpoint (id INTEGER PRIMARY KEY CHECK(id=1), binding TEXT NOT NULL, state_revision INTEGER NOT NULL, payload TEXT NOT NULL)')
 
     def _connect(self):
         connection=sqlite3.connect(self.path,timeout=10)
@@ -44,7 +59,7 @@ class PlanStore:
         with self._connect() as db:
             db.execute('BEGIN IMMEDIATE')
             if db.execute('SELECT 1 FROM current_state').fetchone():raise ValueError('store_already_initialized')
-            reservations,_=pad_reservations(updated['tasks'],updated)
+            reservations=_reservation_snapshot(check_joint_tasks(updated['tasks'],updated))
             db.execute('INSERT INTO current_state VALUES(1,?,?)',(_json(updated),_json(reservations)))
             db.execute('INSERT INTO history(kind,payload) VALUES(?,?)',('initialized',_json({'after':updated})))
 
@@ -54,8 +69,11 @@ class PlanStore:
     def current_reservations(self):
         with self._connect() as db:
             world=self._current(db)
-            rows=json.loads(db.execute('SELECT reservations FROM current_state WHERE id=1').fetchone()[0])
-            return {'reservation_version':world.get('reservation_version',1),'reservations':rows}
+            stored=json.loads(db.execute('SELECT reservations FROM current_state WHERE id=1').fetchone()[0])
+            if isinstance(stored,list):
+                stored={'schema_version':'legacy-pad-only','reservations':stored,'checks_completed':False,
+                        'joint_check_status':'not_checked','unchecked':[{'reason':'legacy_snapshot_omits_waiting_and_turnaround_occupancy'}]}
+            return {'reservation_version':world.get('reservation_version',1),**stored}
 
     def save_candidate(self,candidate):
         payload=_json(candidate)
@@ -84,6 +102,38 @@ class PlanStore:
         with self._connect() as db:
             return [{'id':row[0],'state_revision':row[1],'result':json.loads(row[2])}
                     for row in db.execute('SELECT id,state_revision,payload FROM decisions ORDER BY id')]
+
+    def checkpoint(self,binding,payload,expected_revision):
+        """Persist pending reviews and budgets together under the current revision.
+
+        A world update may commit before a checkpoint if the process crashes.
+        Recovery then invalidates the cached result; it never reuses a mismatched
+        decision. Normal completed API calls checkpoint before returning.
+        """
+        from .recovery import assert_binding
+        with self._connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            world=self._current(db)
+            if world.get('state_revision',1)!=expected_revision:raise ValueError('checkpoint_state_revision_changed')
+            previous=db.execute('SELECT binding FROM session_checkpoint WHERE id=1').fetchone()
+            if previous:assert_binding(json.loads(previous[0]),binding)
+            result=payload.get('result')
+            if result is not None and result.get('world')!=world:raise ValueError('checkpoint_result_world_mismatch')
+            db.execute('INSERT OR REPLACE INTO session_checkpoint VALUES(1,?,?,?)',
+                       (_json(binding),expected_revision,_json(payload)))
+            self._after_checkpoint_write(db)
+
+    def _after_checkpoint_write(self,db):
+        """Fault-injection seam; not exposed as an API request option."""
+
+    def load_checkpoint(self,binding):
+        from .recovery import assert_binding
+        with self._connect() as db:
+            row=db.execute('SELECT binding,state_revision,payload FROM session_checkpoint WHERE id=1').fetchone()
+            if row is None:return None
+            assert_binding(json.loads(row[0]),binding)
+            current=self._current(db)
+            return {'state_revision':row[1],'current_revision':current.get('state_revision',1),'payload':json.loads(row[2])}
 
     def replace_world(self,world,expected_revision=None,*,task_additions=None):
         """Publish an event or clock update; never import another branch's plans."""
@@ -123,7 +173,7 @@ class PlanStore:
             updated['reservation_version']=old.get('reservation_version',1)+int(bool(additions) or resource_changed)
             updated['state_revision']=revision+1
             updated['plan_review_status']='needs_recheck'
-            reservations,_=pad_reservations(updated['tasks'],updated)
+            reservations=_reservation_snapshot(check_joint_tasks(updated['tasks'],updated))
             db.execute('UPDATE current_state SET world=?,reservations=? WHERE id=1',(_json(updated),_json(reservations)))
             self._after_state_write(db)
             db.execute('INSERT INTO history(kind,payload) VALUES(?,?)',('environment_or_clock_update',_json({'before':old,'after':updated})))
@@ -150,8 +200,13 @@ class PlanStore:
                     task['plan_version']=original[task['id']]['plan_version']+1
             updated['reservation_version']=world.get('reservation_version',1)+1
             updated['state_revision']=world.get('state_revision',1)+1
-            reservations,unchecked=pad_reservations(updated['tasks'],updated)
-            if unchecked:return {'status':'not_checked','adopted':False,'reason':'reservation_build_failed','unchecked':unchecked}
+            joint=report.get('joint_report')
+            if joint is None or 'reservations' not in joint or joint.get('unchecked'):
+                return {'status':'not_checked','adopted':False,'reason':'complete_joint_reservation_report_missing_or_incomplete',
+                        'unchecked':joint.get('unchecked',[]) if joint else []}
+            # The mandatory verifier just built these rows inside this same
+            # transaction. Plan version increments do not change their geometry.
+            reservations=_reservation_snapshot(joint)
             updated['plan_review_status']='conditionally_checked'
             record={'candidate_id':candidate['id'],'explicit':True,
                     'before_plan_versions':{i:t['plan_version'] for i,t in original.items()},

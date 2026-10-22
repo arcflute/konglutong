@@ -70,4 +70,10 @@ def export_result(result,history,*,material_audit=(),field_audit=()):
         'evidence_requests':copy.deepcopy(result.get('evidence_requests',[])),
         'material_audit':copy.deepcopy(list(material_audit)),'field_audit':copy.deepcopy(list(field_audit)),
         'learning_status':copy.deepcopy(result['learning_status']),'learning_advice':copy.deepcopy(result.get('learning_advice',{})),
+        'learning_applicability':copy.deepcopy(result.get('learning_applicability')),
+        'planning_policy':copy.deepcopy(w.get('planning_policy',{'mode':'conservative'})),
+        'maintenance_explanations':copy.deepcopy(result.get('maintenance_explanations')),
+        'failure_diagnosis':copy.deepcopy(result.get('failure_diagnosis')),
+        'search_diagnostics':copy.deepcopy(result.get('search_diagnostics')),
+        'timings':copy.deepcopy(result.get('timings')),
         'conditions':copy.deepcopy(result['limits']),'history':copy.deepcopy(list(history))}
