@@ -97,3 +97,38 @@
 规划器记录`search_diagnostics`中的失败分支；不支持或缺少几何时返回`unsupported_or_incomplete_search_input`，即使该对象与原计划不同时，也不允许候选搜索将它静默忽略。节点区间/边检查连续，运动预约冲突后以1秒步长有限重试；几何使用1e-9容差，搜索边界外移使用1e-6秒与相应保守比较。该数值策略和有限图没有完备性/最优性保证。多容量起降点在搜索阶段仍保守按单占用阻塞，独立复核按真实声明容量计数。
 
 同一飞行器的重叠任务会报双重预约；不重叠的多任务复用目前缺少转场/补能契约，报告`aircraft_turnaround_unmodeled`并保持未检查，不能默认回满电或瞬移。当前包内三项任务各有独立飞行器，不受此限制。采纳更新不改变场景分支，不允许观测时间倒退；已启动任务的轨迹和等待被修改时，即使版本相同也拒绝采纳。
+
+## 9. 第二轮：双时间事件、增量依赖和补证闭环（覆盖上文首轮对应限制）
+
+当前 `world-v2`、`rules-v2` 支持 `advance_world(world, as_of_s, events=[])`。纯模拟时钟推进不增加环境版本；收到新事件增加版本；已接收的待生效事件在有效时间到达时增加版本并写入 `activation_log`。函数返回新对象，不改写传入快照。`tasks` 不属于施工事件重建范围，已采纳计划和模拟在途进度不会被初始施工快照覆盖。
+
+第一层分别维护：
+
+- `observed_events`：只有已经到达的原始记录，不包含未释放的仿真分支。
+- `pending_events`：已到达但有效时间尚未来临的记录；未来完成声明在此期间不释放活动占用。
+- `initial_state`：设施、活动、已知来源及语义关系的重建起点，不含任务计划。
+- `occupancy_history`：按有效时间排序的几何/活动状态区间；约束追加 `geometry_version`。有几何变化时 ID 如 `physical:crane_1:0:v1`，旧几何保留在旧有效时段。
+- `event_log`：收件时的 `before/after`、`received_at_s`、`observed_at_s`、`effective_at_s`、`status_at_receipt` 和环境版本。迟到记录使当前知识重建历史有效区间，但不重写以前的事件日志或调用者保存的决策快照。
+
+新增事件仍必需 `id/kind/source_kind/observed_at_s/effective_at_s`：
+
+| kind | 字段及实际行为 |
+|---|---|
+| `facility_added` | `facility={id,physical_geometry,...}`；从有效时刻开始物理占用，来源由事件统一登记 |
+| `facility_geometry_changed` / `facility_pose_changed` | `facility_id/physical_geometry`，可带 `pose/parameters`；明确提供新几何，姿态文字或角度不能替代米制几何 |
+| `activity_started` | 新增时带 `activity={id,facility_id,planned_interval_s,activity_envelope}`；已有活动使用 `activity_id`；开始不确认结束 |
+| `activity_paused` / `activity_resumed` | `activity_id`；可带明确 `activity_envelope`。暂停缺少新包络时保留原保守包络，不能自动消除占用 |
+| `activity_envelope_changed` | `activity_id/activity_envelope`；`null` 表示未知，必须进入未检查状态 |
+| `planned_end_changed` | 仅改计划，不能重启已经确认结束的活动；迟到但有效时间早于完成的计划变更可进入当前历史解释 |
+| `activity_completion_confirmed` | 关闭活动区间，物理设施仍在；不允许捎带拆除 |
+| `facility_removal_confirmed` | 要求关联活动已确认结束，单独关闭设施物理区间 |
+
+同一有效时间按新增设施、开始活动、普通变化、完成、拆除的依赖顺序处理，再按到达时间及 ID 确定次序。相同 ID 和内容幂等，不同内容拒绝；失败更新不留下部分状态。相互矛盾的完成/拆除时间要求明确的数据纠错工作流，当前不会自动选择有利的答案。未发生/未观测的未来真值始终不传入决策世界。
+
+`incremental.DependencyEngine.analyze(world,candidates=[])` 返回 `constraints/baseline_analysis/joint_analysis/dependencies/cache/changed_constraint_ids/invalidated_candidate_ids`，`update` 为同一入口。按任务和约束的完整可见内容、规则/模型/情景/时域缓存任务—约束检查；新增和变化几何对所有任务检查，防止旧关联漏掉新冲突。联合资源仍全量复核；候选依赖暂保守扩展至全部约束，环境或计划版本变动时标记失效，缓存不赋予采纳权限。针对相同版本、变化几何、未知几何、任务修改和时钟推进的用例将结果与全量报告逐字段比较。
+
+`generate_requests(..., source_layer='conflict_analysis'|'maintenance_decision', candidates=[])` 实际计算两种明确分支：未确认活动继续占用，或者假设在 `max(as_of_s,planned_end_s)` 已有确认。后一分支只是查询价值分析，绝不进入世界状态或充当证据；不提供虚构分支概率。冲突敏感性依据原任务判断变化触发；维护决策价值依据保留/修复或暂缓动作变化触发；传入已求解候选时，先在实际世界独立复核任务/资源/版本，再单独重算两分支几何判断与字典序偏好；分支候选偏好仅用于补证优先级，不赋予可行或可采纳状态。两个分支都不改变判断/建议时不请求。当前仅针对完成状态，未实现全部未知几何字段的查询价值。
+
+`query_evidence(world,request,evidence_source=None,timeout_s=5)` 可读世界中已见记录，或显式提供 `{id,kind,records:[event,...]}` 的证据源。`kind` 只接受 `available_records` 或 `synthetic_evidence_source`。只释放 `observed_at_s<=world.as_of_s` 且有效时间已到达的完成记录。模拟源可用 `simulated_delay_s` 验证超时，字段明确标识为模拟延迟，函数不会伪装实际网络服务。冲突记录返回 `conflicting_evidence`，无记录、超时、超预算、到期均保留未知。请求有截止时间、单位成本、最大查询数、状态和冻结版本。
+
+解析到的有效记录返回 `status=resolved`、`proposed_event` 和来源引用，仍然 `world_updated=false`。调用 `apply_evidence_result(world,result)` 时再次核对版本、请求对象、答案与原始记录匹配，随后走 `apply_event`，才产生新环境版本与占用。补证失败是无状态变化操作。字段真实性依赖用户提供的材料；本地合成证据源验证的是软件闭环，不证明现实施工已结束。

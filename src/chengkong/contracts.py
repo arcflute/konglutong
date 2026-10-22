@@ -348,13 +348,27 @@ def validate_snapshot(snapshot: JSON) -> None:
 def validate_event(event: JSON, world: JSON | None = None) -> None:
     mapping(event, 'event')
     stable_id(event.get('id'), 'event.id')
-    observed = number(event.get('observed_at_s'), 'event.observed_at_s', minimum=0)
-    effective = number(event.get('effective_at_s'), 'event.effective_at_s', minimum=0)
-    if effective > observed:
-        raise UnsupportedData('future-effective events require a pending-event adapter; not supported in v1')
+    number(event.get('observed_at_s'), 'event.observed_at_s', minimum=0)
+    number(event.get('effective_at_s'), 'event.effective_at_s', minimum=0)
     stable_id(event.get('source_kind'), 'event.source_kind')
     kind = event.get('kind')
-    if kind in ('planned_end_changed', 'activity_completion_confirmed'):
+    if kind == 'facility_added':
+        facility = mapping(event.get('facility'), 'event.facility')
+        stable_id(facility.get('id'), 'event.facility.id')
+        for geometry in sequence(facility.get('physical_geometry'), 'event.facility.physical_geometry'):
+            validate_geometry(geometry)
+        if facility.get('removal_confirmed', False) or facility.get('installed', True) is not True:
+            raise ContractError('new facility must be installed and not removed')
+    elif kind == 'activity_started' and 'activity' in event:
+        activity = mapping(event['activity'], 'event.activity')
+        stable_id(activity.get('id'), 'event.activity.id')
+        stable_id(activity.get('facility_id'), 'event.activity.facility_id')
+        parse_interval(activity.get('planned_interval_s'), 'event.activity.planned_interval_s')
+        validate_geometry(activity.get('activity_envelope'))
+        if activity.get('completion_status', 'not_confirmed') != 'not_confirmed':
+            raise ContractError('activity start cannot assert completion')
+    elif kind in ('planned_end_changed', 'activity_completion_confirmed', 'activity_started',
+                  'activity_paused', 'activity_resumed', 'activity_envelope_changed'):
         stable_id(event.get('activity_id'), 'event.activity_id')
         if world is not None and event['activity_id'] not in {a['id'] for a in world['activities']}:
             raise ContractError('event references missing activity')
@@ -362,12 +376,19 @@ def validate_event(event: JSON, world: JSON | None = None) -> None:
             number(event.get('new_planned_end_s'), 'event.new_planned_end_s', minimum=0)
             if event.get('completion_status', 'not_confirmed') != 'not_confirmed':
                 raise ContractError('planned end update cannot confirm completion')
-        elif event.get('facility_removed', False) is not False:
+        elif kind == 'activity_completion_confirmed' and event.get('facility_removed', False) is not False:
             raise ContractError('completion event cannot remove a facility; use facility_removal_confirmed')
-    elif kind == 'facility_removal_confirmed':
+        if 'activity_envelope' in event:
+            validate_geometry(event['activity_envelope'])
+        if kind == 'activity_envelope_changed' and 'activity_envelope' not in event:
+            raise ContractError('activity_envelope_changed requires an explicit envelope or null unknown')
+    elif kind in ('facility_removal_confirmed', 'facility_geometry_changed', 'facility_pose_changed'):
         stable_id(event.get('facility_id'), 'event.facility_id')
         if world is not None and event['facility_id'] not in {f['id'] for f in world['facilities']}:
             raise ContractError('event references missing facility')
+        if kind != 'facility_removal_confirmed':
+            for geometry in sequence(event.get('physical_geometry'), 'event.physical_geometry'):
+                validate_geometry(geometry)
     else:
         raise UnsupportedData(f'unsupported event kind: {kind!r}')
 
@@ -395,7 +416,9 @@ def validate_example(raw: JSON) -> None:
     for scenario in raw['scenario_definitions_for_simulator_only']:
         seen: dict[str, JSON] = {}
         for event in sequence(scenario.get('events'), 'scenario.events'):
-            validate_event(event, raw['observed_snapshot'])
+            # References may target facilities/activities introduced by earlier events.
+            # The chronological replay checks referential/state consistency atomically.
+            validate_event(event)
             if event['id'] in seen and seen[event['id']] != event:
                 raise ContractError('same event id has conflicting payloads')
             seen[event['id']] = event
@@ -428,3 +451,18 @@ def validate_world(world: JSON) -> None:
         seen_events.add(identifier)
         if number(entry.get('observed_at_s'), 'event_log.observed_at_s') > world['as_of_s']:
             raise ContractError('world event_log contains hidden future observation')
+    if 'observed_events' in world:
+        observed = sequence(world['observed_events'], 'observed_events')
+        by_id = {}
+        for event in observed:
+            validate_event(event)
+            if event['observed_at_s'] > world['as_of_s']:
+                raise ContractError('observed_events contains hidden future observation')
+            if event['id'] in by_id:
+                raise ContractError('duplicate observed event id')
+            by_id[event['id']] = event
+        if by_id != {entry['id']: entry['event'] for entry in world['event_log']}:
+            raise ContractError('observed events must match immutable receipt log')
+        pending = sequence(world.get('pending_events', []), 'pending_events')
+        if pending != [event for event in observed if event['effective_at_s'] > world['as_of_s']]:
+            raise ContractError('pending events must match visible future-effective records')

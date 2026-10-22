@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 from chengkong.contracts import ContractError, UnsupportedData
-from chengkong.world import load_example, visible_world, apply_event, generate_constraints
+from chengkong.world import load_example, visible_world, apply_event, generate_constraints, advance_world
 from chengkong.evidence import generate_requests, query_evidence
 from chengkong.learning import (capability_statuses, UntrainedSensitivityModel,
                                UntrainedCalibrator, UnconfiguredMultimodalParser)
@@ -79,12 +79,18 @@ class EvidenceAndAdapterTests(unittest.TestCase):
         self.assertTrue(world['facilities'][0]['installed'])
         self.assertFalse(removed['facilities'][0]['installed'])
 
-    def test_future_effective_event_is_explicitly_unsupported(self):
+    def test_future_effective_event_is_queued_without_early_release(self):
         event = {'id': 'early_prediction', 'observed_at_s': 60, 'effective_at_s': 400,
                  'kind': 'activity_completion_confirmed', 'activity_id': 'lifting_1',
                  'source_kind': 'synthetic_confirmation', 'facility_removed': False}
-        with self.assertRaises(UnsupportedData):
-            apply_event(self.world, event)
+        pending = apply_event(self.world, event)
+        self.assertEqual(pending['activities'][0]['completion_status'], 'not_confirmed')
+        self.assertEqual(pending['pending_events'][0]['id'], 'early_prediction')
+        self.assertEqual(next(c for c in generate_constraints(pending) if c['kind'] == 'activity')['interval_s'][1], 900)
+        activated = advance_world(pending, 400)
+        self.assertEqual(activated['activities'][0]['completion_confirmed_at_s'], 400)
+        self.assertGreater(activated['environment_version'], pending['environment_version'])
+        self.assertTrue(activated['facilities'][0]['installed'])
 
 
 if __name__ == '__main__':
