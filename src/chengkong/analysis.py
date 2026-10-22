@@ -199,14 +199,67 @@ def check_joint_tasks(tasks, world, from_time_s=None):
         except (KeyError,TypeError,ValueError) as exc:
             trajectories.pop(task.get("id"),None)
             report["unchecked"].append({"task_id":task.get("id"),"reason":"invalid_task","detail":str(exc)})
+    reuse = aircraft_continuity(tasks,world)
+    report["aircraft_transitions"] = reuse["transitions"]
+    report["conflicts"].extend(reuse["conflicts"])
+    report["unchecked"].extend(reuse["unchecked"])
+    report['additional_stationary_occupancies']=reuse['reservations']
+    # Between-task stationary occupancies are physical aircraft presence, not
+    # merely pad-capacity tokens. Rebuild the authoritative object constraints
+    # here so callers cannot omit an obstacle list for these extra intervals.
+    report['stationary_object_reports']=[]
+    report['stationary_reference_reports']=[]
+    if reuse['reservations']:
+        from .world import generate_constraints
+        from .reference_geometry import check_reference_task
+        try:
+            authoritative=generate_constraints(world)
+            task_by_id={t['id']:t for t in tasks}
+            for row in reuse['reservations']:
+                owner=task_by_id[row['task_id']]
+                proxy={**owner,'protection_radius_m':row['protection_radius_m'],
+                    'departure_time_s':row['interval_s'][0],
+                    'trajectory':[{'time_s':at,'position_m':list(row['position_m'])} for at in row['interval_s']]}
+                proxy.pop('ground_wait_interval_s',None)
+                checked=check_task(proxy,authoritative,world,from_time_s)
+                checked['occupancy_kind']='aircraft_turnaround_and_charge'
+                checked['resource_id']=row['resource_id']
+                report['stationary_object_reports'].append(checked)
+                report['unchecked'].extend(checked['unchecked'])
+                for conflict in checked['conflicts']:
+                    report['conflicts'].append({**conflict,'kind':'aircraft_turnaround_object_occupancy',
+                        'object_constraint_kind':conflict['kind'],'resource_id':row['resource_id'],
+                        'task_ids':row['related_task_ids']})
+                reference=check_reference_task(proxy,authoritative,from_time_s)
+                reference['occupancy_kind']='aircraft_turnaround_and_charge'
+                reference['resource_id']=row['resource_id']
+                report['stationary_reference_reports'].append(reference)
+                report['unchecked'].extend(reference['unchecked'])
+                covered={c['constraint_id'] for c in checked['conflicts']}
+                for conflict in reference['conflicts']:
+                    if conflict['constraint_id'] not in covered:
+                        report['conflicts'].append({**conflict,'kind':'independent_reference_turnaround_object_occupancy',
+                            'resource_id':row['resource_id'],'task_ids':row['related_task_ids'],
+                            'interval_s':[max(row['interval_s'][0],from_time_s) if from_time_s is not None else row['interval_s'][0],row['interval_s'][1]]})
+        except (KeyError,TypeError,ValueError) as exc:
+            report['unchecked'].append({'reason':'turnaround_object_checks_incomplete','detail':str(exc)})
+    extra_radii={}
+    for index,row in enumerate(reuse['reservations']):
+        tid=row['task_id'];lo,hi=row['interval_s']
+        if from_time_s is not None:lo=max(lo,from_time_s)
+        if lo<hi and tid in trajectories:
+            segment_index=-1000-index
+            point=row['position_m']
+            trajectories[tid].append((segment_index,lo,hi,point,point))
+            extra_radii[(tid,segment_index)]=row['protection_radius_m']
     for i,left in enumerate(tasks):
         for right in tasks[i+1:]:
             if left.get("id") not in trajectories or right.get("id") not in trajectories:
                 continue
             ls,rs = trajectories[left["id"]],trajectories[right["id"]]
-            radius = float(left["protection_radius_m"])+float(right["protection_radius_m"])
             for li,l0,l1,lp0,lp1 in ls:
                 for ri,r0,r1,rp0,rp1 in rs:
+                    radius=float(extra_radii.get((left['id'],li),left['protection_radius_m']))+float(extra_radii.get((right['id'],ri),right['protection_radius_m']))
                     start,end = max(l0,r0),min(l1,r1)
                     if start >= end:
                         continue
@@ -226,10 +279,6 @@ def check_joint_tasks(tasks, world, from_time_s=None):
                             "required_separation_m":radius,"encounter_type":_encounter_type(lp0,lp1,rp0,rp1),"method":"continuous_exact_relative_motion_spheres"})
     reservations,unchecked = pad_reservations(tasks,world)
     report["unchecked"].extend(unchecked)
-    reuse = aircraft_continuity(tasks,world)
-    report["aircraft_transitions"] = reuse["transitions"]
-    report["conflicts"].extend(reuse["conflicts"])
-    report["unchecked"].extend(reuse["unchecked"])
     reservations.extend(reuse["reservations"])
     waits,unchecked = waiting_reservations(tasks,world)
     reservations.extend(waits);report["unchecked"].extend(unchecked)

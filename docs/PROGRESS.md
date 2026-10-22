@@ -49,3 +49,5 @@ cooperative_planning代理负责planning/analysis/verification及cooperation/exe
 最终集成回归已实际执行136项通过（8.973秒），日志runs/round2-final-tests.txt；Web真实浏览器6组操作/14次API调用/0脚本错误，截图包含中文字体。CLI规则、12快照、inflight和learned实际运行通过，evaluate重新加载产物完成。Agent补证闭环专项9项及HTTP8项已包含在该回归中。
 
 根代理追加只读复核同机驻留与短时施工包络交叠边界，交由cooperative_planning实证检查；如果发现实际遗漏，修复后只补必要回归，不重复训练。其余收尾为阶段提交、文档与QA服务停机；真实服务未配置仍为明确限制。
+
+追加复查实际确认驻留[244,350]遗漏短时施工[260,300]，已将驻留纳入完整世界约束解析与独立reference；未知几何拒绝可行，在途历史单列，新增3项通过。连同禁等和邻机分离收尾共新增5条资源回归。完整139项回归进行最终记录，未修改地面运输途中未建模边界。

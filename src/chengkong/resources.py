@@ -80,9 +80,16 @@ def aircraft_continuity(tasks, world):
                     'required_reserve':task['energy_assumptions']['required_landing_reserve']})
             arrival=end['time_s']+transfer
             if arrival<start['time_s']:
+                pad=next((p for p in world['pads'] if p['id']==task['launch_pad_id']),None)
+                if pad is None or not pad.get('ground_wait_allowed',False):
+                    result['conflicts'].append({'kind':'aircraft_turnaround_wait_location_unavailable',
+                        'resource_id':task['launch_pad_id'],'task_ids':row['task_ids'],
+                        'interval_s':[arrival,start['time_s']],'reason':'Turnaround and charging require a pad permitting ground waiting.'})
                 result['reservations'].append({'resource_id':task['launch_pad_id'],
                     'task_id':task['id'],'interval_s':[arrival,start['time_s']],
-                    'kinds':['aircraft_turnaround_and_charge'], 'aircraft_id':aircraft})
+                    'kinds':['aircraft_turnaround_and_charge'], 'aircraft_id':aircraft,
+                    'position_m':list(start['position_m']), 'related_task_ids':list(row['task_ids']),
+                    'protection_radius_m':max(task['protection_radius_m'],previous['protection_radius_m'])})
             remaining=after
     return result
 

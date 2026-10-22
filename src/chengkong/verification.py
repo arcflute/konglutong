@@ -263,6 +263,9 @@ def verify_candidate(candidate, world, constraints):
         historical=[c for c in joint['conflicts'] if 'interval_s' in c and c['interval_s'][1]<=context['at_s'] and c['interval_s'][0]<context['at_s']]
         report['historical_conflicts'].extend(historical);joint['historical_conflicts']=historical
         future_joint=check_joint_tasks(tasks,world,context['at_s'])
+        for key in ('stationary_object_reports','stationary_reference_reports'):
+            joint['complete_'+key]=joint.get(key,[])
+            joint[key]=future_joint.get(key,[])
         joint['conflicts']=future_joint['conflicts']
         joint['unchecked']=future_joint['unchecked']
         joint['status']='conflict' if joint['conflicts'] else 'not_checked' if joint['unchecked'] else 'clear'
