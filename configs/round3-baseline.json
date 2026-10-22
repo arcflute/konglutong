@@ -1,0 +1,143 @@
+{
+  "recorded_at_utc": "2026-10-22T17:34:17.653685+00:00",
+  "start_commit": "9d30ece8f918e61d76d965550851a6ee8d34fe8e",
+  "initial_git_status": "",
+  "python": "3.10.8 (main, Nov 24 2022, 14:13:03) [GCC 11.2.0]",
+  "dependencies": [
+    "# Editable Git install with no remote (chengkong-zhihu==0.2.0)",
+    "-e /root/autodl-tmp/chengkong-zhihu/src",
+    "cloudpickle==3.1.2",
+    "greenlet==3.5.6",
+    "joblib==1.6.0",
+    "numpy==2.2.6",
+    "playwright==1.55.0",
+    "pyee==13.0.1",
+    "scikit-learn==1.7.2",
+    "scipy==1.15.3",
+    "threadpoolctl==3.7.0",
+    "typing_extensions==4.16.0",
+    "xgboost-cpu==3.0.5"
+  ],
+  "original_artifacts": [
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/calibration.json",
+      "relative": "calibration.json",
+      "category": "models",
+      "sha256": "11b6bbaaff19ba66a32e8704e6410fa05492870a549839ae946a60de4f25d5b9",
+      "bytes": 830
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/evaluate-output.json",
+      "relative": "evaluate-output.json",
+      "category": "models",
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79",
+      "bytes": 4297
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/evaluation.json",
+      "relative": "evaluation.json",
+      "category": "models",
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79",
+      "bytes": 4297
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/fit-config.json",
+      "relative": "fit-config.json",
+      "category": "models",
+      "sha256": "9a2769610e18c7ac39cfedbe6a217f91a3a50aa9f292f80ce7f726a175c5a778",
+      "bytes": 695
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/gnn-training.json",
+      "relative": "gnn-training.json",
+      "category": "models",
+      "sha256": "269e51413427b655583c178c276c6d04a69b094acab9bb797fbfa46d7840a689",
+      "bytes": 4573
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/gnn.npz",
+      "relative": "gnn.npz",
+      "category": "models",
+      "sha256": "9ab10a995cad72bb8d22c9e976c5b8c6fc5d1291899570410a6e70bc20a5268b",
+      "bytes": 2880
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/manifest.json",
+      "relative": "manifest.json",
+      "category": "models",
+      "sha256": "9a148ecb15bef2335969d18b11cb4a206ab31b90baf0527a9aecb4599828b61f",
+      "bytes": 7712
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/quantile_lower.json",
+      "relative": "quantile_lower.json",
+      "category": "models",
+      "sha256": "e6afff2813b69d380309ae252db337c2ac8c9a9d71663626c9b9998b20d07538",
+      "bytes": 47099
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/quantile_upper.json",
+      "relative": "quantile_upper.json",
+      "category": "models",
+      "sha256": "9e9c20d2635039c4958a5d901b8d6f8d234a3172d4a28eb819cc758b0230f045",
+      "bytes": 54477
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/ranker.json",
+      "relative": "ranker.json",
+      "category": "models",
+      "sha256": "29abab0e068f0961f1df0fca87c723d42cc6b2049810816a0763f2d5200ab46f",
+      "bytes": 67812
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/sensitivity.json",
+      "relative": "sensitivity.json",
+      "category": "models",
+      "sha256": "970d488f5dd98c62355ec40489139bc25e396ff62f3d0a22a55d72ed113edd5f",
+      "bytes": 65402
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/train-output.json",
+      "relative": "train-output.json",
+      "category": "models",
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79",
+      "bytes": 4297
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/benchmark.json",
+      "relative": "benchmark.json",
+      "category": "data",
+      "sha256": "8c7851c417ce4f0f23e28c239fc57ea049657d04fce10ce10d464a448646b532",
+      "bytes": 1233
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/data_manifest.json",
+      "relative": "data_manifest.json",
+      "category": "data",
+      "sha256": "9402b2654a5d7ad292225eed9011849b089451e2bcb7d52e578a9c6238b6cf97",
+      "bytes": 4948
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/dataset.json",
+      "relative": "dataset.json",
+      "category": "data",
+      "sha256": "001cfc579ce2e0992feaf4db2d6da8fa8c5b669053ba1c2877437837878cf729",
+      "bytes": 2569670
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/simulator_truth.jsonl",
+      "relative": "simulator_truth.jsonl",
+      "category": "data",
+      "sha256": "c43bb9de0be98c0bc5942ebf9a247bda2446eff5ddc1e73c9f44050b6470a3fe",
+      "bytes": 47711
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/visible_scenarios.jsonl",
+      "relative": "visible_scenarios.jsonl",
+      "category": "data",
+      "sha256": "627fa9958d006a799f861e667b8a0193e3e06b4829f99344656330b840cbd363",
+      "bytes": 846357
+    }
+  ],
+  "backup_root": "/root/autodl-tmp/chengkong-data/round3/baseline_round2"
+}

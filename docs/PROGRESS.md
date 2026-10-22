@@ -44,3 +44,11 @@
 下一阶段需最终3.2原稿、许可明确且带有效/到达时间的施工记录、几何与图像尺度基准、真实任务和飞行器/地面周转参数、项目范围内的模型服务协议/授权/预算。仍需扩展精细设备运动、真实数据校准、任意三维/更大规模协同和系统级对照。任意字段补证、自动实体定位、地面搬运路径及多实例会话恢复未完成。完整方法继续保留在32项FEATURE_MATRIX。
 
 恢复时先读本文件、VALIDATION、FEATURE_MATRIX和git status；不要重复训练现有产物或误把首轮历史“待实现”当成当前状态。后续新增功能仍保持未知语义、前缀冻结、强制复核及显式采纳。
+
+# 第三轮进行中（以本节为当前恢复位置）
+
+起点9d30ece，未提交修改为空。round2原数据/模型保留并备份，哈希和依赖见configs/round3-baseline.json；起点源码归档独立跑基线。执行清单：审计与指标→动态吊装→结构化导入/字段证据→独立round3分组与模型诊断→本地空间视图/时间线/导出→专项、最终回归与浏览器→本地阶段提交。
+
+分工：round3_motion负责motion及world/contracts/geometry/analysis/planning/verification/reference接线；round3_imports负责imports/field_evidence、evidence/multimodal与材料模板；round3_learning负责独立round3数据/训练评估及runtime兼容；root负责pipeline/storage/cli/web/static、集成与总文档。所有Git提交由root选择文件集合执行。
+
+当前发现：敏感性未接精算顺序；GNN旧标签人工邻域平滑；ranker并列标签被字母打破；需要实际预算/运行时间/共同成功集对照。见ROUND3_AUDIT。没有最终稿/API配置不阻止其余工作；Sites技能只走local-only实现与验证，不注册/同步/发布。
