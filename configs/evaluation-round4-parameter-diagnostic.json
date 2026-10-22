@@ -1,0 +1,60 @@
+{
+  "schema_version": "round4-evaluation-config-v1",
+  "seed": 20261031,
+  "template_count": 24,
+  "split_templates": {
+    "train": 6,
+    "validation": 6,
+    "calibration": 6,
+    "test": 6
+  },
+  "data_dir": "/root/autodl-tmp/chengkong-data/round4/sequences",
+  "result_dir": "/root/autodl-tmp/chengkong-data/round4/evaluation",
+  "model_dir": "/root/autodl-tmp/chengkong-models/round3",
+  "training_decision": "no_retraining: current bottlenecks are candidate coverage, missing information, and model-domain mismatch; all old-model results labeled out_of_domain",
+  "total_evaluation_budget_seconds": 900,
+  "total_reference_budget_seconds": 120,
+  "budget": {
+    "max_orders": 8,
+    "max_searches": 32,
+    "max_expansions": 2500,
+    "timeout_s": 2.0
+  },
+  "reference_budget": {
+    "max_orders": 48,
+    "max_searches": 128,
+    "max_expansions": 15000,
+    "timeout_s": 6.0
+  },
+  "reference_template_limit": 2,
+  "simulation_adoption_policy": "explicit_evaluation_only: at each arrival adopt reviewed minimum lexicographic stability candidate iff current plan fails mandatory future checks; if current plan passes retain unchanged; never connected to Web auto-adoption",
+  "strategies": [
+    "conservative_rule",
+    "dynamic_rule",
+    "dynamic_keep_detour",
+    "dynamic_learned_ood"
+  ],
+  "metrics": [
+    "joint_feasible_decisions",
+    "covered_task_occurrences",
+    "simulated_executed_tasks_with_valid_checks",
+    "failed_decision_classes",
+    "mandatory_pairs_checked",
+    "first_feasible_seconds",
+    "distance",
+    "energy",
+    "delay",
+    "changed_tasks",
+    "repeat_modifications",
+    "evidence_requests",
+    "evidence_pending_seconds",
+    "model_load",
+    "features",
+    "inference",
+    "search",
+    "verification",
+    "total",
+    "common_success_cost"
+  ],
+  "scope": "Synthetic finite-graph software sequence evaluation, no optimality/completeness or field deployment claims"
+}
