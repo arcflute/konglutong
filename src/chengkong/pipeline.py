@@ -11,16 +11,15 @@ from .verification import verify_candidate
 from .world import visible_world,generate_constraints
 from .evidence import generate_requests,resolve_requests
 from .learning import capability_statuses
+from .pair_keys import pair_key
 
 
-def analyze_world(world,*,engine=None,inflight=False,learned=False,model_bundle=None,planning_budget=None,existing_candidates=None):
+def analyze_world(world,*,engine=None,inflight=False,learned=False,model_bundle=None,planning_budget=None,existing_candidates=None,checking_budget=None):
     world=copy.deepcopy(world)
     world.setdefault('reservation_version',1)
     if model_bundle is not None:
         world['model_version']=model_bundle.version
     constraints=generate_constraints(world)
-    incremental=engine.analyze(world,candidates=existing_candidates) if engine is not None else None
-    reports=incremental['baseline_analysis'] if incremental else {t['id']:check_task(t,constraints,world) for t in world['tasks']}
     baseline_candidate={'id':'baseline-review','tasks':world['tasks'],
                         'base_environment_version':world['environment_version'],
                         'base_reservation_version':world['reservation_version'],
@@ -43,6 +42,18 @@ def analyze_world(world,*,engine=None,inflight=False,learned=False,model_bundle=
                        'model_version':model_bundle.version,'source':'trained_synthetic_explicit_opt_in'}
         except (ValueError,KeyError,ImportError,TypeError) as exc:
             advice={'status':'unavailable','reason':str(exc)}
+    # The learned priority is applied before the first exact object check.
+    # This scheduling experiment does not replace mandatory full candidate review.
+    checking_schedule=None;incremental=None
+    if (learned and hints) or checking_budget is not None:
+        from .learning_round3_runtime import priority_checks
+        checking_schedule=priority_checks(world,constraints,model_bundle if learned and hints else None,**(checking_budget or {}))
+        reports=checking_schedule.pop('reports')
+        checking_schedule['scope']='initial task-object checking pass; planning and full verification have separate mandatory checks'
+        checking_schedule['incremental_cache']='bypassed_to_measure_explicit_check_order'
+    else:
+        incremental=engine.analyze(world,candidates=existing_candidates) if engine is not None else None
+        reports=incremental['baseline_analysis'] if incremental else {t['id']:check_task(t,constraints,world) for t in world['tasks']}
     diagnostics=[]
     kwargs={'budget':planning_budget,'planning_hints':hints}
     if inflight:
@@ -70,7 +81,7 @@ def analyze_world(world,*,engine=None,inflight=False,learned=False,model_bundle=
     if learned and hints:
         scores=advice['sensitivity'].get('scores',{})
         for request in requests:
-            related=[scores.get(f"{tid}:{constraint['id']}",0.0)
+            related=[scores.get(pair_key(tid,constraint['id']),0.0)
                      for tid in request['related_task_ids'] for constraint in constraints
                      if constraint['object_id']==request['object_id']]
             request['sensitivity_priority_score']=max(related,default=0.0)
@@ -79,7 +90,7 @@ def analyze_world(world,*,engine=None,inflight=False,learned=False,model_bundle=
     started=any(t['departure_time_s']<world['as_of_s'] and reports[t['id']]['status']!='clear' for t in world['tasks'])
     status='candidates_generated' if proposals else 'no_candidate_within_supported_search'
     if started and not inflight:status='needs_operational_review_started_task'
-    return {'schema_version':'chengkong-result-v2','data_kind':'synthetic','is_real_case':False,
+    return {'schema_version':'chengkong-result-v2','data_kind':world.get('data_kind','synthetic'),'is_real_case':False,
             'analysis_mode':'inflight_simulation' if inflight else 'observed_snapshot_and_historical_replay',
             'world':world,'constraints':constraints,'baseline_analysis':reports,
             'baseline_full_review':verify_candidate(baseline_candidate,world,constraints),
@@ -88,6 +99,7 @@ def analyze_world(world,*,engine=None,inflight=False,learned=False,model_bundle=
             'learning_status':capability_statuses(model_dir=model_bundle.path if model_bundle is not None else None),'learning_advice':advice,'learning_enabled':bool(learned and hints),
             'evidence_requests':requests,'evidence_results':resolve_requests(world,requests),
             'incremental':incremental,
+            'checking_schedule':checking_schedule,
             'limits':['synthetic local frame and fixed velocity model only',
                       'finite graph and bounded priority repair; no global completeness or optimality claim',
                       'learned scores only order work; every hard constraint is independently checked',

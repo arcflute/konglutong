@@ -1,0 +1,752 @@
+{
+  "model_version": "synthetic-round3-a774ca1b9f04",
+  "test_policy": "First final evaluation after immutable model selection; subsequent evaluations reproduce frozen selection without retuning",
+  "default_policy": "deterministic_rule",
+  "split_counts": {
+    "calibration": 64,
+    "train": 160,
+    "test": 48,
+    "validation": 48
+  },
+  "independent_template_counts": {
+    "train": 80,
+    "validation": 24,
+    "calibration": 32,
+    "test": 24
+  },
+  "audit": {
+    "status": "passed",
+    "independent_parent_families": 160,
+    "complete_candidate_groups": 1122,
+    "groups_with_tied_relevance": 1122,
+    "explicit_feature_allowlists": true,
+    "ids_modes_labels_excluded": true,
+    "upstream_fitted_predictions_used": false,
+    "missingness_note": "Missing geometry mask is legitimately decision-visible; it is sampled independently of hidden outcome draw. No missingness bit alone provides an outcome label."
+  },
+  "static_metrics": {
+    "sensitivity": {
+      "pair_denominator": 752,
+      "mse": 0.024546204064191657,
+      "bbox_rule_mse": 0.5389085894405043,
+      "event_mean_ndcg": 0.5601643011225432,
+      "template_mse_difference_ci": {
+        "groups": 24,
+        "mean_difference": -0.5232031186714537,
+        "bootstrap95": [
+          -0.5979294909246706,
+          -0.4478571529643871
+        ],
+        "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+      },
+      "target": "fraction of declared parameter perturbations that conflict; not incident probability"
+    },
+    "gnn": {
+      "event_graph_denominator": 48,
+      "discriminative_graphs": 24,
+      "zero_positive_graphs": 18,
+      "metrics": {
+        "rule_bbox_ndcg": 0.5347374508392592,
+        "rule_bbox_mse": 0.5746527777777778,
+        "rule_bbox_ndcg_discriminative": 0.8194749016785184,
+        "same_feature_node_xgb_ndcg": 0.5681328824537227,
+        "same_feature_node_xgb_mse": 0.20093826684975627,
+        "same_feature_node_xgb_ndcg_discriminative": 0.8862657649074454,
+        "priority_rule_ndcg": 0.5409752578889829,
+        "priority_rule_mse": 0.32557870370370373,
+        "priority_rule_ndcg_discriminative": 0.8319505157779657,
+        "weighted_seed_20261024_ndcg": 0.5873070652352866,
+        "weighted_seed_20261024_mse": 0.26861077627758284,
+        "weighted_seed_20261024_ndcg_discriminative": 0.9246141304705734,
+        "isolated_seed_20261024_ndcg": 0.5805006470483011,
+        "isolated_seed_20261024_mse": 0.22487631323237886,
+        "isolated_seed_20261024_ndcg_discriminative": 0.9110012940966022,
+        "weighted_seed_20261025_ndcg": 0.6004490573239216,
+        "weighted_seed_20261025_mse": 0.27949534113493263,
+        "weighted_seed_20261025_ndcg_discriminative": 0.9508981146478432,
+        "isolated_seed_20261025_ndcg": 0.5783501069288648,
+        "isolated_seed_20261025_mse": 0.2426209453067958,
+        "isolated_seed_20261025_ndcg_discriminative": 0.9067002138577296,
+        "trained_weighted_removed_edges_ndcg": 0.559135457030095,
+        "trained_weighted_removed_edges_mse": 0.27133401716649796,
+        "trained_weighted_removed_edges_ndcg_discriminative": 0.8682709140601902,
+        "trained_weighted_permuted_edges_ndcg": 0.5681277528253846,
+        "trained_weighted_permuted_edges_mse": 0.2841282140715477,
+        "trained_weighted_permuted_edges_ndcg_discriminative": 0.8862555056507694
+      },
+      "weighted_vs_rule_template_ndcg_ci": {
+        "groups": 24,
+        "mean_difference": 0.052569614396027475,
+        "bootstrap95": [
+          0.014104294064200794,
+          0.09438418726275268
+        ],
+        "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+      },
+      "interpretation": "Nonuniform-label subset reports actual ranking discrimination; all-equal graphs otherwise inflate/flatten NDCG. No graph is removed from all-graph metrics."
+    },
+    "ranking": {
+      "complete_query_denominator": 192,
+      "all_zero_relevance_queries": 100,
+      "queries_with_ties": 192,
+      "solvable_queries": 92,
+      "overall_unsolved_fraction": 0.5208333333333333,
+      "changed_order_queries": 192,
+      "metrics": {
+        "model_ndcg": 0.45802201713169816,
+        "rule_ndcg": 0.3932291666666667,
+        "model_top1_feasible": 0.421875,
+        "rule_top1_feasible": 0.3072916666666667,
+        "model_common_first_cost": 3.501784149634293,
+        "rule_common_first_cost": 3.501784149634293
+      },
+      "common_success_cost_denominator": 92,
+      "cost_difference_template_ci": {
+        "groups": 21,
+        "mean_difference": 0.0,
+        "bootstrap95": [
+          0.0,
+          0.0
+        ],
+        "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+      }
+    }
+  },
+  "evaluation_seconds": 2.5641725660534576,
+  "limits": [
+    "Synthetic local geometry only; no real data and no certified probabilities.",
+    "Labels and query timing target local fixed-reservation actions; full multi-task results are separately reported.",
+    "Precise crane motion is an external stress domain, not represented in this learning corpus.",
+    "Elapsed times are small CPU workloads and sensitive to scheduler/cache; repeated seeds apply to graph weights, not independent test families.",
+    "Conformal guarantee requires exchangeable families; single scalar outcome and sampled within-family process only.",
+    "Default rule remains unchanged; negative comparisons retained."
+  ],
+  "sensitivity_online": {
+    "scope": "Actually executed current-constraint checks; 50% pair-count budget and full pass. Timing includes feature/model inference; no low-score obligation discarded.",
+    "summary": {
+      "rule": {
+        "events": 48,
+        "events_with_conflict": 19,
+        "first_conflict_seconds": {
+          "count": 19,
+          "mean": 0.0005881519877891007,
+          "p50": 0.0005324189551174641,
+          "p90": 0.0008697447599843142,
+          "max": 0.0011646670754998922
+        },
+        "budget_relevant_pair_completion": 0.8235294117647058,
+        "budget_relevant_task_full_completion": 0.1875,
+        "related_task_denominator": 48,
+        "related_pair_denominator": 51,
+        "mean_unchecked_pair_fraction": 0.5,
+        "total_seconds": 0.04573275288566947,
+        "inference_seconds": 0.019623034168034792
+      },
+      "learned": {
+        "events": 48,
+        "events_with_conflict": 19,
+        "first_conflict_seconds": {
+          "count": 19,
+          "mean": 0.0010684503205610734,
+          "p50": 0.0009701460367068648,
+          "p90": 0.0013072540517896413,
+          "max": 0.0014945269795134664
+        },
+        "budget_relevant_pair_completion": 0.9607843137254902,
+        "budget_relevant_task_full_completion": 0.020833333333333332,
+        "related_task_denominator": 48,
+        "related_pair_denominator": 51,
+        "mean_unchecked_pair_fraction": 0.5,
+        "total_seconds": 0.07405890349764377,
+        "inference_seconds": 0.04548940493259579
+      }
+    }
+  },
+  "ranking_online": {
+    "scope": "Actual repeated local solver calls; same complete action set, features, two-attempt budget, expansion/time limits; fixed other tasks. Joint integration separately evaluated.",
+    "common_success_query_denominator": 59,
+    "attempt_budget": 2,
+    "solve_status_counts": {
+      "found": 394,
+      "no_solution_in_bounded_graph": 73,
+      "unsupported_inflight_local_action": 11,
+      "unsupported_or_incomplete_search_input": 134,
+      "initial_pad_unavailable": 16
+    },
+    "summary": {
+      "rule": {
+        "query_denominator": 192,
+        "feasible_count": 59,
+        "task_completion_rate_under_fixed_attempt_budget": 0.3072916666666667,
+        "overall_failure_fraction": 0.6927083333333333,
+        "attempts_all_queries": {
+          "count": 192,
+          "mean": 1.6927083333333333,
+          "p50": 2.0,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "seconds_all_queries": {
+          "count": 192,
+          "mean": 0.0009294004369924854,
+          "p50": 0.0008732015267014503,
+          "p90": 0.0014056462212465705,
+          "max": 0.0016383520560339093
+        },
+        "first_feasible_seconds_success_only": {
+          "count": 59,
+          "mean": 0.0007786969713456297,
+          "p50": 0.0007531699957326055,
+          "p90": 0.00100693479180336,
+          "max": 0.001595802023075521
+        },
+        "mean_inference_seconds": 0.0,
+        "stop_classes": {
+          "feasible": 59,
+          "attempt_budget_exhausted": 61,
+          "information_insufficient": 72
+        },
+        "common_success_cost": 1.3063319298025224,
+        "common_success_metrics": {
+          "changed_tasks": 0.0,
+          "delay_s": 0.0,
+          "distance_m": 458.750703445549,
+          "extra_distance_m": 0.0,
+          "energy_used": 65.31659649012613
+        }
+      },
+      "learned": {
+        "query_denominator": 192,
+        "feasible_count": 92,
+        "task_completion_rate_under_fixed_attempt_budget": 0.4791666666666667,
+        "overall_failure_fraction": 0.5208333333333333,
+        "attempts_all_queries": {
+          "count": 192,
+          "mean": 1.578125,
+          "p50": 2.0,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "seconds_all_queries": {
+          "count": 192,
+          "mean": 0.005576350479411,
+          "p50": 0.004762131487950683,
+          "p90": 0.008975542918778957,
+          "max": 0.019862988032400608
+        },
+        "first_feasible_seconds_success_only": {
+          "count": 92,
+          "mean": 0.006568392056657974,
+          "p50": 0.005211332463659346,
+          "p90": 0.010774430481251332,
+          "max": 0.019862988032400608
+        },
+        "mean_inference_seconds": 0.0034259355901061403,
+        "stop_classes": {
+          "feasible": 92,
+          "attempt_budget_exhausted": 28,
+          "information_insufficient": 72
+        },
+        "common_success_cost": 1.3063319298025224,
+        "common_success_metrics": {
+          "changed_tasks": 0.0,
+          "delay_s": 0.0,
+          "distance_m": 458.750703445549,
+          "extra_distance_m": 0.0,
+          "energy_used": 65.31659649012613
+        }
+      }
+    }
+  },
+  "calibration": {
+    "target": "First activity end-time error, one scalar, not mission safety or joint time-series coverage",
+    "nominal_coverage": 0.9,
+    "calibration_status": "calibrated_synthetic",
+    "calibration_independent_templates": 32,
+    "calibration_rows": 64,
+    "order_statistic_k": 30,
+    "selected_scale_mode": "none",
+    "test_event_denominator": 48,
+    "test_family_denominator": 24,
+    "raw_event_coverage": 0.8958333333333334,
+    "calibrated_event_coverage": 1.0,
+    "raw_all_variants_family_coverage": 0.7916666666666666,
+    "calibrated_all_variants_family_coverage": 1.0,
+    "raw_width_s": {
+      "count": 48,
+      "mean": 108.77672911683719,
+      "p50": 120.21393203735352,
+      "p90": 133.99727334976197,
+      "max": 137.90737915039062
+    },
+    "calibrated_width_s": {
+      "count": 48,
+      "mean": 185.7637330987079,
+      "p50": 197.20093601922423,
+      "p90": 210.98427733163268,
+      "max": 214.89438313226134
+    },
+    "conditional_advice_impact_counts": {
+      "raw:detour_or_hold_needs_solver": 192,
+      "raw:evidence_due_interval_exceeding_slack": 146,
+      "calibrated:detour_or_hold_needs_solver": 192,
+      "calibrated:evidence_due_interval_exceeding_slack": 176
+    },
+    "impact_scope": "Advisory comparison against visible task slack only; predictions do not end actual occupancy, select/accept a candidate, or authorize waiting"
+  },
+  "joint_online": {
+    "scope": "Fixed first test event IDs selected by protocol order, actual joint planner under identical candidate generation and hard constraints; limited subset, not statistical proof",
+    "budget": {
+      "max_orders": 4,
+      "max_searches": 12,
+      "max_expansions": 512,
+      "timeout_s": 1.0
+    },
+    "events": 12
+  },
+  "artifact_dir": "/root/autodl-tmp/chengkong-models/round3",
+  "data_dir": "/root/autodl-tmp/chengkong-data/round3",
+  "evaluation_sha256": "5f3205f649f65f9bb5de817fa349f1c18dced1b12bbf97deaf6857b55104e451",
+  "diagnostic_addendum": {
+    "status": "post_final_evaluation_diagnostics_not_selection",
+    "model_version": "synthetic-round3-a774ca1b9f04",
+    "alternate_rule": {
+      "order": [
+        "keep",
+        "detour",
+        "delay"
+      ],
+      "budget": 2,
+      "queries": 192,
+      "feasible_queries": 92,
+      "completion_fraction": 0.4791666666666667,
+      "mean_attempts": 1.6927083333333333,
+      "seconds_all_queries": {
+        "count": 192,
+        "mean": 0.0024179663887480274,
+        "p50": 0.0011144225136376917,
+        "p90": 0.005606443528085947,
+        "max": 0.02193784702103585
+      },
+      "interpretation": "A very simple alternate rule may match learned success; improvement over keep-delay-detour alone is not robust overall advantage."
+    },
+    "gnn_neighbor_value_intervals": {
+      "20261024": {
+        "vs_same_feature_isolated": {
+          "groups": 24,
+          "mean_difference": 0.006806418186985579,
+          "bootstrap95": [
+            -0.01745493906341836,
+            0.034346205193804866
+          ],
+          "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+        },
+        "vs_same_feature_node_xgb": {
+          "groups": 24,
+          "mean_difference": 0.01917418278156396,
+          "bootstrap95": [
+            -0.016872461965559752,
+            0.058184967421071446
+          ],
+          "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+        }
+      },
+      "20261025": {
+        "vs_same_feature_isolated": {
+          "groups": 24,
+          "mean_difference": 0.022098950395056827,
+          "bootstrap95": [
+            -0.0014353083095106182,
+            0.05775275457640621
+          ],
+          "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+        },
+        "vs_same_feature_node_xgb": {
+          "groups": 24,
+          "mean_difference": 0.03231617487019891,
+          "bootstrap95": [
+            0.00024439496617514905,
+            0.07381547849546517
+          ],
+          "unit": "paired difference averaged within template then bootstrap templates; descriptive small-sample uncertainty"
+        }
+      }
+    },
+    "motion_out_of_domain_integration": [
+      {
+        "at_s": 60,
+        "scenario": "on_time_confirmed",
+        "required_pairs": 27,
+        "same_full_conflicts": true,
+        "same_unchecked": true,
+        "learned_all_pairs_checked": true,
+        "outside_training_domain": true,
+        "scope": "Integration stress only, not dynamic-motion prediction quality or independent test-family count"
+      },
+      {
+        "at_s": 300,
+        "scenario": "on_time_confirmed",
+        "required_pairs": 27,
+        "same_full_conflicts": true,
+        "same_unchecked": true,
+        "learned_all_pairs_checked": true,
+        "outside_training_domain": true,
+        "scope": "Integration stress only, not dynamic-motion prediction quality or independent test-family count"
+      },
+      {
+        "at_s": 450,
+        "scenario": "on_time_confirmed",
+        "required_pairs": 27,
+        "same_full_conflicts": true,
+        "same_unchecked": true,
+        "learned_all_pairs_checked": true,
+        "outside_training_domain": true,
+        "scope": "Integration stress only, not dynamic-motion prediction quality or independent test-family count"
+      }
+    ]
+  },
+  "provenance": {
+    "actual_coverage": {
+      "events": 320,
+      "multi_site_events": 216,
+      "events_with_shared_pad": 178,
+      "events_with_shared_aircraft": 0,
+      "events_with_unknown_activity_geometry": 129,
+      "events_with_explicit_conflicting_record_metadata": 30,
+      "events_with_in_progress_task": 36,
+      "events_with_distinct_source_effective_and_observed_times": 52
+    },
+    "pattern_tags_not_guarantees": true,
+    "event_sequences": "Each training event has exactly one decision snapshot; sequence_id indexes its origin, not a claimed multi-step rollout.",
+    "motion_domain": "Learning corpus uses conservative static activity envelopes; motion integration addendum is explicitly out of training domain.",
+    "source_record_timing": "Original pre/post generation hashes are retained in data_manifest; this broader closure is current evaluation provenance, not retroactive proof of unchanged omitted dependencies.",
+    "original_experiment_invalidated_before_test": "round3-pretest-prefix-audit/INVALIDATED_BEFORE_FINAL_TEST.json",
+    "total_training_wall_seconds_including_invalidated_run": 42.92216362198815,
+    "test_use": "First test results and later reproductions/diagnostics all observed now; future tuning must not treat this test as untouched."
+  },
+  "feature_version": "visible-round3-v1",
+  "feature_names": {
+    "sensitivity": [
+      "bbox_clearance_m",
+      "temporal_overlap_s",
+      "route_length_m",
+      "flight_duration_s",
+      "height_clearance_m",
+      "geometry_missing",
+      "end_unconfirmed",
+      "source_age_s",
+      "planned_remaining_s",
+      "task_slack_s",
+      "protection_radius_m",
+      "priority",
+      "constraint_is_activity",
+      "nearest_route_xy_m",
+      "object_radius_m",
+      "object_height_m",
+      "pair_start_gap_s",
+      "pair_end_gap_s"
+    ],
+    "gnn": [
+      "min_bbox_clearance_m",
+      "max_temporal_overlap_s",
+      "geometry_missing",
+      "end_unconfirmed",
+      "task_slack_s",
+      "priority",
+      "shared_resource_degree",
+      "route_length_m",
+      "flight_duration_s",
+      "energy_margin",
+      "source_age_s",
+      "nearest_route_xy_m",
+      "shared_pad_degree",
+      "shared_aircraft_degree",
+      "corridor_degree",
+      "constraint_degree",
+      "task_count",
+      "temporal_density"
+    ],
+    "ranking": [
+      "min_bbox_clearance_m",
+      "max_temporal_overlap_s",
+      "geometry_missing",
+      "end_unconfirmed",
+      "task_slack_s",
+      "priority",
+      "shared_resource_degree",
+      "route_length_m",
+      "flight_duration_s",
+      "energy_margin",
+      "source_age_s",
+      "nearest_route_xy_m",
+      "shared_pad_degree",
+      "shared_aircraft_degree",
+      "corridor_degree",
+      "constraint_degree",
+      "task_count",
+      "temporal_density",
+      "action_keep",
+      "action_delay",
+      "action_detour",
+      "planned_remaining_s",
+      "constraint_count",
+      "max_object_radius_m",
+      "min_task_end_gap_s",
+      "postponement_slack_s"
+    ],
+    "quantile": [
+      "planned_duration_s",
+      "elapsed_s",
+      "source_age_s",
+      "notice_delay_s",
+      "radius_m",
+      "geometry_missing"
+    ]
+  },
+  "artifact_checksums": {
+    "sensitivity.json": {
+      "sha256": "a68412fd66a942ba90784d448e3fe6462640db809671e1cc526bcb5e5e6c7416",
+      "bytes": 103318
+    },
+    "ranker.json": {
+      "sha256": "d2d54d516eb1430158e906f359bd1f7df1677507f521af7633c9024765220aa7",
+      "bytes": 79346
+    },
+    "gnn.npz": {
+      "sha256": "42eec96402c73c47c3cf3dcf0e7508f58f44c3181b3e33b88e2ba3743c16dca5",
+      "bytes": 4002
+    },
+    "quantile_lower.json": {
+      "sha256": "67de7b170c3fa211bbb645190a794919a62b014c081d2347dc707e4d0d28465b",
+      "bytes": 44072
+    },
+    "quantile_upper.json": {
+      "sha256": "2705a191be5ac9e05d2af8db2c5a71963bccf3c0e6a6b86123fef91b36018a00",
+      "bytes": 51191
+    },
+    "calibration.json": {
+      "sha256": "6886637bd682dec5f2f9195545f3668b4054bbe11e801c5dac9285ff02804d32",
+      "bytes": 2620
+    }
+  },
+  "seed": 20261024,
+  "selection": {
+    "frozen_unix_s": 1792691027.4081492,
+    "selection": {
+      "sensitivity": "sensitivity-1-20261024-none",
+      "ranker": "ranker-1-20261024-none",
+      "gnn": "gnn-0-20261024-weighted",
+      "quantile_scale_mode": "none"
+    },
+    "validation_scores": {
+      "sensitivity": [
+        {
+          "tag": "sensitivity-1-20261024-none",
+          "selection_loss": 0.03981602057101823
+        },
+        {
+          "tag": "sensitivity-0-20261024-none",
+          "selection_loss": 0.043818552659520164
+        }
+      ],
+      "ranker": [
+        {
+          "tag": "ranker-1-20261024-none",
+          "selection_loss": -0.41045160558580224
+        },
+        {
+          "tag": "ranker-0-20261024-none",
+          "selection_loss": -0.39082241498258125
+        }
+      ],
+      "quantile": [
+        {
+          "mode": "none",
+          "validation_interval_score": 166.33368292760605
+        },
+        {
+          "mode": "visible_duration_scale",
+          "validation_interval_score": 173.15602069161966
+        }
+      ]
+    },
+    "test_sha256": "2f9536d47075bf34976b9c6c162eecae25e9f609a288935256b86a5542e54d7b",
+    "protocol_sha256": "08381b9759a9fe73c527e8fb0800b127fea1905f06c3cf672cc88f2ab9f7da34",
+    "training_seconds": {
+      "sensitivity-0-20261024-none": 0.9421168799744919,
+      "sensitivity-1-20261024-none": 0.956858504912816,
+      "ranker-0-20261024-none": 0.9332834179513156,
+      "ranker-1-20261024-none": 0.8954788410337642,
+      "gnn-0-20261024-weighted": 3.296574470004998,
+      "gnn-0-20261024-isolated": 3.404842374031432,
+      "gnn-0-20261025-weighted": 3.1402847580611706,
+      "gnn-0-20261025-isolated": 3.1113277869299054,
+      "node_baseline-0-20261024-none": 0.8406863079871982,
+      "quantile_lower-0-20261024-none": 0.7128554800292477,
+      "quantile_upper-0-20261024-none": 0.9161536080064252,
+      "quantile_lower-0-20261024-visible_duration_scale": 0.7115567189175636,
+      "quantile_upper-0-20261024-visible_duration_scale": 0.7912904139375314
+    },
+    "total_fit_wall_seconds": 21.180358270998113,
+    "default_policy": "deterministic_rule",
+    "selection_uses_test": false,
+    "max_primary_configurations": 2
+  },
+  "current_runtime_reproduction": {
+    "result_path": "/root/autodl-tmp/chengkong-models/round3/evaluation-reproduction-1792691215302106471.json",
+    "sha256": "12cf67e7496ecce8e18511850235624b41e10408edd8b65f95d671c6fa183fa0",
+    "ranking_summary": {
+      "rule": {
+        "query_denominator": 192,
+        "feasible_count": 59,
+        "task_completion_rate_under_fixed_attempt_budget": 0.3072916666666667,
+        "overall_failure_fraction": 0.6927083333333333,
+        "attempts_all_queries": {
+          "count": 192,
+          "mean": 1.6927083333333333,
+          "p50": 2.0,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "seconds_all_queries": {
+          "count": 192,
+          "mean": 0.0009297956027391289,
+          "p50": 0.0008849654695950449,
+          "p90": 0.0013677797629497944,
+          "max": 0.0020478139631450176
+        },
+        "first_feasible_seconds_success_only": {
+          "count": 59,
+          "mean": 0.0007857473239586768,
+          "p50": 0.0007601520046591759,
+          "p90": 0.001021383749321103,
+          "max": 0.0020478139631450176
+        },
+        "mean_inference_seconds": 0.0,
+        "stop_classes": {
+          "feasible": 59,
+          "attempt_budget_exhausted": 61,
+          "information_insufficient": 72
+        },
+        "common_success_cost": 1.3063319298025224,
+        "common_success_seconds": {
+          "count": 59,
+          "mean": 0.0007857473239586768,
+          "p50": 0.0007601520046591759,
+          "p90": 0.001021383749321103,
+          "max": 0.0020478139631450176
+        },
+        "common_success_attempts": {
+          "count": 59,
+          "mean": 1.0,
+          "p50": 1.0,
+          "p90": 1.0,
+          "max": 1.0
+        },
+        "common_success_metrics": {
+          "changed_tasks": 0.0,
+          "delay_s": 0.0,
+          "distance_m": 458.750703445549,
+          "extra_distance_m": 0.0,
+          "energy_used": 65.31659649012613
+        }
+      },
+      "learned": {
+        "query_denominator": 192,
+        "feasible_count": 92,
+        "task_completion_rate_under_fixed_attempt_budget": 0.4791666666666667,
+        "overall_failure_fraction": 0.5208333333333333,
+        "attempts_all_queries": {
+          "count": 192,
+          "mean": 1.578125,
+          "p50": 2.0,
+          "p90": 2.0,
+          "max": 2.0
+        },
+        "seconds_all_queries": {
+          "count": 192,
+          "mean": 0.004413275565336032,
+          "p50": 0.003588396531995386,
+          "p90": 0.008055624866392467,
+          "max": 0.019308495917357504
+        },
+        "first_feasible_seconds_success_only": {
+          "count": 92,
+          "mean": 0.0053844313142294795,
+          "p50": 0.004150966997258365,
+          "p90": 0.010107183328364048,
+          "max": 0.019308495917357504
+        },
+        "mean_inference_seconds": 0.002258816962542672,
+        "stop_classes": {
+          "feasible": 92,
+          "attempt_budget_exhausted": 28,
+          "information_insufficient": 72
+        },
+        "common_success_cost": 1.3063319298025224,
+        "common_success_seconds": {
+          "count": 59,
+          "mean": 0.004462169763490053,
+          "p50": 0.0036544339964166284,
+          "p90": 0.006165598565712571,
+          "max": 0.017471992876380682
+        },
+        "common_success_attempts": {
+          "count": 59,
+          "mean": 1.0169491525423728,
+          "p50": 1.0,
+          "p90": 1.0,
+          "max": 2.0
+        },
+        "common_success_metrics": {
+          "changed_tasks": 0.0,
+          "delay_s": 0.0,
+          "distance_m": 458.750703445549,
+          "extra_distance_m": 0.0,
+          "energy_used": 65.31659649012613
+        }
+      }
+    }
+  },
+  "calibration_impact_correction": {
+    "target": "First activity end-time error, one scalar, not mission safety or joint time-series coverage",
+    "nominal_coverage": 0.9,
+    "calibration_status": "calibrated_synthetic",
+    "calibration_independent_templates": 32,
+    "calibration_rows": 64,
+    "order_statistic_k": 30,
+    "selected_scale_mode": "none",
+    "test_event_denominator": 48,
+    "test_family_denominator": 24,
+    "raw_event_coverage": 0.8958333333333334,
+    "calibrated_event_coverage": 1.0,
+    "raw_all_variants_family_coverage": 0.7916666666666666,
+    "calibrated_all_variants_family_coverage": 1.0,
+    "raw_width_s": {
+      "count": 48,
+      "mean": 108.77672911683719,
+      "p50": 120.21393203735352,
+      "p90": 133.99727334976197,
+      "max": 137.90737915039062
+    },
+    "calibrated_width_s": {
+      "count": 48,
+      "mean": 185.7637330987079,
+      "p50": 197.20093601922423,
+      "p90": 210.98427733163268,
+      "max": 214.89438313226134
+    },
+    "conditional_advice_impact_counts": {
+      "raw:detour_or_hold_needs_solver": 128,
+      "raw:evidence_due_interval_exceeding_slack": 146,
+      "calibrated:detour_or_hold_needs_solver": 136,
+      "calibrated:evidence_due_interval_exceeding_slack": 176,
+      "raw:delay_if_completion_confirmed": 58,
+      "calibrated:delay_if_completion_confirmed": 50,
+      "raw:requires_frozen_prefix_replan": 6,
+      "calibrated:requires_frozen_prefix_replan": 6
+    },
+    "impact_scope": "First-activity conditional delay uses max(0, planned_end + predicted_error - task_departure), compared with deadline minus original arrival; other activities/resources ignored, so advisory only. Predictions never end occupancy or authorize a candidate.",
+    "correction_note": "Original evaluation mixed as_of-relative remaining duration with departure-delay slack. This absolute-time correction is post-evaluation metric repair; data, fitted models and selections unchanged."
+  }
+}

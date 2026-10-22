@@ -4,6 +4,7 @@ import json
 import hashlib
 from pathlib import Path
 import numpy as np
+from .pair_keys import pair_key
 
 from .synthetic import (PAIR_FEATURES,NODE_FEATURES,ACTION_FEATURES,QUANTILE_FEATURES,
     FEATURE_VERSION,pair_features,graph_features,action_features)
@@ -70,6 +71,13 @@ class SmallGNN:
 
 
 class ModelBundle:
+    def __new__(cls,artifact_dir):
+        # Keep round2 binary artifacts and feature schemas unchanged.
+        manifest=json.loads((Path(artifact_dir)/'manifest.json').read_text())
+        if cls is ModelBundle and manifest.get('feature_version')=='visible-round3-v1':
+            from .learning_round3_runtime import Round3Bundle
+            return Round3Bundle(artifact_dir)
+        return super().__new__(cls)
     def __init__(self,artifact_dir):
         import xgboost as xgb
         self.path=Path(artifact_dir).resolve()
@@ -92,7 +100,7 @@ class ModelBundle:
         pairs=[(t,c,pair_features(t,c,world)) for t in world['tasks'] for c in constraints]
         if not pairs:return dict(self._meta(),pair_order=[],scores={})
         predictions=self.sensitivity_model.predict(matrix([p[2] for p in pairs],PAIR_FEATURES))
-        scores={f'{t["id"]}:{c["id"]}':float(p) for (t,c,_),p in zip(pairs,predictions)}
+        scores={pair_key(t['id'],c['id']):float(p) for (t,c,_),p in zip(pairs,predictions)}
         return dict(self._meta(),pair_order=sorted(scores,key=lambda k:(-scores[k],k)),scores=scores)
     def association(self,world,constraints):
         graph=graph_features(world,constraints)
