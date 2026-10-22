@@ -1,4 +1,4 @@
-"""Replaceable learning boundaries. No weights, API calls or trained models are bundled."""
+"""Learning boundaries; optional trained synthetic artifacts are explicitly loaded."""
 from __future__ import annotations
 
 from typing import Any, Protocol
@@ -88,8 +88,23 @@ class UntrainedRepairRanker:
             'rule': 'keep, delay, detour, hold; id tie-break; actual solved feasibility/cost decides selection'})
 
 
-def capability_statuses() -> dict[str, dict[str, Any]]:
-    return {name: _result(name, status) for name, status in (
+def capability_statuses(model_dir=None) -> dict[str, dict[str, Any]]:
+    statuses = {name: _result(name, status) for name, status in (
         ('vlm_llm_parser', 'not_configured'), ('xgboost_sensitivity', 'not_trained'),
         ('gnn_association', 'not_trained'), ('quantile_conformal_calibration', 'not_trained'),
         ('learning_repair_ranking', 'not_trained'), ('learned_world_evolution', 'not_trained'))}
+    if model_dir is not None:
+        import json
+        from pathlib import Path
+        manifest = json.loads((Path(model_dir) / 'manifest.json').read_text())
+        for name in ('xgboost_sensitivity', 'gnn_association',
+                     'quantile_conformal_calibration', 'learning_repair_ranking'):
+            statuses[name].update(status='trained_synthetic', trained=True,
+                model_version=manifest['model_version'], reason='Loaded synthetic experiment artifact',
+                default_enabled=False, real_world_validated=False,
+                training_scope=manifest['scope'])
+    else:
+        for row in statuses.values():
+            if row['status'] == 'not_trained':
+                row['reason'] = 'No artifact loaded in this runtime; explicit model_dir required'
+    return statuses

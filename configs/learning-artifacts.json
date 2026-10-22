@@ -1,0 +1,236 @@
+{
+  "model_version": "synthetic-round2-001cfc579ce2",
+  "feature_version": "visible-v2.1",
+  "artifact_dir": "/root/autodl-tmp/chengkong-models/round2",
+  "data_dir": "/root/autodl-tmp/chengkong-data/round2",
+  "status": "trained_synthetic",
+  "default_enabled": false,
+  "default_policy": "deterministic_rule",
+  "evaluation": {
+    "model_version": "synthetic-round2-001cfc579ce2",
+    "default_policy": "deterministic_rule",
+    "results": {
+      "validation": {
+        "events": 24,
+        "template_groups": 8,
+        "pairs": 162,
+        "sensitivity": {
+          "mse": 0.06331824220221674,
+          "rule_bbox_mse": 0.545343697607072,
+          "ndcg": 0.5919114643485869,
+          "rule_unknown_first_ndcg": 0.528441674186468,
+          "label": "fraction of declared geometry/end perturbations conflicting; no accident probability"
+        },
+        "gnn": {
+          "node_mse": 0.22014527541539536,
+          "rule_node_mse": 0.41916011126352687,
+          "ndcg": 0.6490607151591354,
+          "rule_ndcg": 0.6500361547867577,
+          "rule_priority_ndcg": 0.6973358210548363
+        },
+        "ranking": {
+          "queries": 81,
+          "solvable_queries": 44,
+          "ndcg_at_3": 0.48052708469638433,
+          "rule_ndcg_at_3": 0.36067757096781605,
+          "top_one_proposal_feasible_rate": 0.4074074074074074,
+          "rule_top_one_feasible_rate": 0.25925925925925924,
+          "all_proposal_feasible_rate_no_learning": 0.5432098765432098,
+          "mean_evaluations_to_first_feasible_on_solvable": 1.25,
+          "rule_mean_evaluations_to_first_feasible_on_solvable": 2.0454545454545454,
+          "first_feasible_mean_cost": 3.931836839934918,
+          "rule_first_feasible_mean_cost": 3.89774593084401,
+          "full_enumeration_min_mean_cost": 3.89774593084401,
+          "comparison_scope": "same actually solved proposal set, replayed ordering; no global multi-task optimality claim"
+        },
+        "quantile": {
+          "nominal_coverage": 0.8,
+          "uncalibrated_coverage": 0.4166666666666667,
+          "calibrated_coverage": 0.9166666666666666,
+          "calibrated_all_variants_group_coverage": 0.75,
+          "uncalibrated_mean_width_s": 75.34663391113281,
+          "calibrated_mean_width_s": 341.35693359375,
+          "correction_s": 133.005142925742,
+          "not_flight_safety_probability": true
+        }
+      },
+      "test": {
+        "events": 27,
+        "template_groups": 9,
+        "pairs": 174,
+        "sensitivity": {
+          "mse": 0.04492058021027672,
+          "rule_bbox_mse": 0.3825031928480204,
+          "ndcg": 0.40343765727884723,
+          "rule_unknown_first_ndcg": 0.3599707514341119,
+          "label": "fraction of declared geometry/end perturbations conflicting; no accident probability"
+        },
+        "gnn": {
+          "node_mse": 0.23661719093033287,
+          "rule_node_mse": 0.5457075351213282,
+          "ndcg": 0.3785156430045762,
+          "rule_ndcg": 0.40124992246821223,
+          "rule_priority_ndcg": 0.3451310260658
+        },
+        "ranking": {
+          "queries": 87,
+          "solvable_queries": 59,
+          "ndcg_at_3": 0.6242087819309927,
+          "rule_ndcg_at_3": 0.5273821498641961,
+          "top_one_proposal_feasible_rate": 0.5402298850574713,
+          "rule_top_one_feasible_rate": 0.5402298850574713,
+          "all_proposal_feasible_rate_no_learning": 0.6781609195402298,
+          "mean_evaluations_to_first_feasible_on_solvable": 1.2033898305084745,
+          "rule_mean_evaluations_to_first_feasible_on_solvable": 1.4067796610169492,
+          "first_feasible_mean_cost": 1.6934239977985448,
+          "rule_first_feasible_mean_cost": 1.6764748452561715,
+          "full_enumeration_min_mean_cost": 1.6764748452561715,
+          "comparison_scope": "same actually solved proposal set, replayed ordering; no global multi-task optimality claim"
+        },
+        "quantile": {
+          "nominal_coverage": 0.8,
+          "uncalibrated_coverage": 0.6296296296296297,
+          "calibrated_coverage": 1.0,
+          "calibrated_all_variants_group_coverage": 1.0,
+          "uncalibrated_mean_width_s": 80.81198120117188,
+          "calibrated_mean_width_s": 346.8222961425781,
+          "correction_s": 133.005142925742,
+          "not_flight_safety_probability": true
+        }
+      }
+    },
+    "limits": [
+      "Small synthetic templates only; no real-world evaluation.",
+      "Evaluation ordering replays recorded real solver outcomes; elapsed runtime improvement is not inferred.",
+      "GNN labels express direct and neighboring synthetic impact, not global optimal repair membership.",
+      "Conformal group coverage requires exchangeable template families and may be wide.",
+      "No learned output bypasses geometry, time, task or resource review."
+    ]
+  },
+  "training_seconds": {
+    "sensitivity": 0.7419651260133833,
+    "gnn": 1.635081748943776,
+    "ranker": 0.7932857829146087,
+    "quantile_lower": 0.790555159910582,
+    "quantile_upper": 0.8108525059651583
+  },
+  "configuration_attempts_per_model": 1,
+  "gnn_training_loss": {
+    "initial": 0.14676526029001155,
+    "final": 0.024044569799507143,
+    "epochs": 180
+  },
+  "data_counts": {
+    "test": 27,
+    "train": 66,
+    "calibration": 27,
+    "validation": 24
+  },
+  "template_assignments": {
+    "layout-event-template-005": "train",
+    "layout-event-template-029": "train",
+    "layout-event-template-017": "train",
+    "layout-event-template-001": "train",
+    "layout-event-template-035": "train",
+    "layout-event-template-015": "train",
+    "layout-event-template-008": "train",
+    "layout-event-template-043": "train",
+    "layout-event-template-024": "train",
+    "layout-event-template-045": "train",
+    "layout-event-template-009": "train",
+    "layout-event-template-039": "train",
+    "layout-event-template-007": "train",
+    "layout-event-template-014": "train",
+    "layout-event-template-041": "train",
+    "layout-event-template-042": "train",
+    "layout-event-template-036": "train",
+    "layout-event-template-004": "train",
+    "layout-event-template-006": "train",
+    "layout-event-template-040": "train",
+    "layout-event-template-044": "train",
+    "layout-event-template-028": "train",
+    "layout-event-template-031": "validation",
+    "layout-event-template-034": "validation",
+    "layout-event-template-013": "validation",
+    "layout-event-template-012": "validation",
+    "layout-event-template-037": "validation",
+    "layout-event-template-010": "validation",
+    "layout-event-template-003": "validation",
+    "layout-event-template-030": "validation",
+    "layout-event-template-046": "calibration",
+    "layout-event-template-047": "calibration",
+    "layout-event-template-002": "calibration",
+    "layout-event-template-021": "calibration",
+    "layout-event-template-025": "calibration",
+    "layout-event-template-033": "calibration",
+    "layout-event-template-026": "calibration",
+    "layout-event-template-032": "calibration",
+    "layout-event-template-019": "calibration",
+    "layout-event-template-011": "test",
+    "layout-event-template-000": "test",
+    "layout-event-template-038": "test",
+    "layout-event-template-027": "test",
+    "layout-event-template-016": "test",
+    "layout-event-template-018": "test",
+    "layout-event-template-023": "test",
+    "layout-event-template-020": "test",
+    "layout-event-template-022": "test"
+  },
+  "feature_names": {
+    "sensitivity": [
+      "bbox_clearance_m",
+      "temporal_overlap_s",
+      "route_length_m",
+      "flight_duration_s",
+      "height_clearance_m",
+      "geometry_missing",
+      "end_unconfirmed",
+      "source_age_s",
+      "planned_remaining_s",
+      "task_slack_s",
+      "protection_radius_m",
+      "priority",
+      "constraint_is_activity"
+    ],
+    "association": [
+      "min_bbox_clearance_m",
+      "max_temporal_overlap_s",
+      "geometry_missing",
+      "end_unconfirmed",
+      "task_slack_s",
+      "priority",
+      "shared_resource_degree",
+      "route_length_m",
+      "flight_duration_s",
+      "energy_margin",
+      "source_age_s"
+    ],
+    "ranking": [
+      "min_bbox_clearance_m",
+      "max_temporal_overlap_s",
+      "geometry_missing",
+      "end_unconfirmed",
+      "task_slack_s",
+      "priority",
+      "shared_resource_degree",
+      "route_length_m",
+      "flight_duration_s",
+      "energy_margin",
+      "source_age_s",
+      "action_keep",
+      "action_delay",
+      "action_detour",
+      "planned_remaining_s",
+      "constraint_count"
+    ],
+    "quantile": [
+      "planned_duration_s",
+      "elapsed_s",
+      "source_age_s",
+      "notice_delay_s",
+      "radius_m",
+      "geometry_missing"
+    ]
+  },
+  "dataset_sha256": "001cfc579ce2e0992feaf4db2d6da8fa8c5b669053ba1c2877437837878cf729"
+}

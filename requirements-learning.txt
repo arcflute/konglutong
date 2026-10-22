@@ -1,0 +1,8 @@
+# Optional CPU-only learning dependencies; install only in project .venv.
+numpy==2.2.6
+scipy==1.15.3
+scikit-learn==1.7.2
+xgboost-cpu==3.0.5
+joblib==1.6.0
+threadpoolctl==3.7.0
+cloudpickle==3.1.2

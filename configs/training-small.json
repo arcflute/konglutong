@@ -1,0 +1,17 @@
+{
+  "seed": 20261023,
+  "template_count": 48,
+  "variants_per_template": 3,
+  "max_total_generation_seconds": 600,
+  "solver_max_expansions": 256,
+  "solver_timeout_seconds": 3,
+  "max_configs_per_model": 1,
+  "training_timeout_seconds": 90,
+  "xgboost": {"n_estimators": 60, "max_depth": 3, "learning_rate": 0.08, "n_jobs": 2},
+  "gnn": {"hidden": 12, "epochs": 180, "learning_rate": 0.02},
+  "quantile_alpha": 0.2,
+  "data_dir": "/root/autodl-tmp/chengkong-data/round2",
+  "model_dir": "/root/autodl-tmp/chengkong-models/round2",
+  "default_policy": "deterministic_rule",
+  "scope": "synthetic experiment; learned ordering never removes mandatory checks"
+}
