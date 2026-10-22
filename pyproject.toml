@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=63"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chengkong-zhihu"
+version = "0.1.0"
+description = "Versioned synthetic construction constraints and flight-plan maintenance"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+chengkong = "chengkong.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

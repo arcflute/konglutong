@@ -1,0 +1,3 @@
+# Verified packaging tools inside .venv; no global upgrade is needed.
+setuptools==63.2.0
+wheel==0.45.1

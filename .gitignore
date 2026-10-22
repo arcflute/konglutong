@@ -1,0 +1,51 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.conda/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Frontend / generated outputs
+node_modules/
+dist/
+build/
+coverage/
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# Local datasets, trained weights and caches; tracked examples stay in examples/
+data/raw/
+data/processed/
+models/weights/
+checkpoints/
+runs/
+artifacts/
+.cache/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.joblib
+
+# Local databases and secrets are not source artifacts
+*.sqlite
+*.sqlite3
+*.db
+
+# Python package installation metadata
+*.egg-info/

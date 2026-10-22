@@ -1,0 +1,40 @@
+# 功能落实清单
+
+首轮已交付标准库计算链路；保留完整三层路线。状态只对应下面注明的实际范围，不以接口存在代替算法或训练完成。环境及最终验收命令见 `ENVIRONMENT.md`、`VALIDATION.md`；数据字段见 `DATA_CONTRACTS.md`。
+
+| ID | 层 | 方法/功能 | 阶段 | 当前状态、已落实范围及限制 | 代码/证据位置 |
+|---|---|---|---|---|---|
+| W01 | 第一层 | 几何模型与语义场景图 | P1 | 已验证：盒体/圆柱/胶囊体记录、稳定ID及语义引用；精细模型未接入 | `contracts.py`, `world.py`; `tests/test_safety_regressions.py` |
+| W02 | 第一层 | 来源、有效时间、观测时间与版本 | P0/P1 | 已验证：按观测时刻释放、前后状态、事件去重和回放；未来生效事件明确不支持 | `world.py`; `tests/test_safety_regressions.py` |
+| W03 | 第一层 | 施工文本/图片/视频解析适配器 | P3 | 接口已定义、待接入：返回 `not_configured`，不伪造米制提取值 | `learning.py`; `tests/test_world.py` |
+| W04 | 第一层 | Agent 查询、校验与辅助更新 | P3 | 规则查询/校验已验证；多模态Agent、实体匹配及外部更新流程待接入 | `contracts.py`, `evidence.py`; `tests/test_world.py` |
+| W05 | 第一层 | 设施及活动参数化 | P1 | 已验证：输入固定塔身/臂杆与活动包络分开；完整回转/停放姿态模型未实现 | `world.py`; `tests/test_safety_regressions.py` |
+| W06 | 第一层 | 规则世界模型与多情景推演 | P1 | 已验证：正常/延期/未确认事件分支，无概率、无未来泄漏；运动状态机待扩展 | `world.py`; `tests/test_safety_regressions.py` |
+| W07 | 第一层 | 历史数据驱动的演化预测 | 后续研究 | 未实现、待训练：无历史训练数据/权重，状态明确为 `not_trained` | `learning.py` |
+| W08 | 第一层 | 事件增量更新与补证写回 | P1/P2 | 事件更新与版本失效基线已实现；当前下游全量重算，选择性增量与外部补证回写未实现 | `world.py`, `storage.py`, `pipeline.py` |
+| C01 | 第二层 | 施工语义规则映射 | P1 | 已验证：物理/活动约束及来源版本；确认完成不移除设施 | `world.py`; `tests/test_safety_regressions.py` |
+| C02 | 第二层 | 动态占用、电子围栏与保护范围 | P1 | 合成流程已验证：时间活动包络和保护体；园区边界在完整计划/候选复核检查；动态运动占用/复杂围栏待扩展 | `geometry.py`, `analysis.py`, `verification.py` |
+| C03 | 第二层 | 分位数估计与不确定性校准 | P3 | 接口已定义、待训练：无校准数据，不输出覆盖率或安全概率 | `learning.py`; `tests/test_world.py` |
+| C04 | 第二层 | 保守时空筛选与候选关联 | P1 | 合成流程已验证：时间重叠和膨胀包围盒；空间索引加速未实现 | `analysis.py`; `pipeline.py` |
+| C05 | 第二层 | XGBoost 冲突敏感性学习 | P3 | 接口已定义、待训练；规则排序明确标识且不免检 | `learning.py`; `tests/test_world.py` |
+| C06 | 第二层 | GNN 多任务关联 | P3 | 接口已定义、待训练；显式关联图回退无预测分数，折外训练流程未实现 | `learning.py`, `analysis.py` |
+| C07 | 第二层 | 连续航段时空冲突精算 | P1 | 合成流程已验证：连续线性航段、边界接触、活动同时间；圆柱端盖使用保守外包络 | `geometry.py`, `analysis.py`; 完整边界检查见 `VALIDATION.md` |
+| C08 | 第二层 | 冲突证据与检查完成度 | P1 | 合成流程已验证：来源/版本/时段/位置及unchecked，未知不判通过 | `analysis.py`, `verification.py` |
+| C09 | 第二层 | 冲突驱动主动补证 | P2 | 规则基线已验证：可见记录查询、预算/期限/未知；敏感性学习触发和增量闭环待实现 | `evidence.py`; `tests/test_world.py` |
+| C10 | 第二层 | 候选计划复核接口 | P1/P2 | 合成流程已验证：完整世界重新筛选和任务/资源复核；不能仅检查原冲突对象 | `verification.py`, `pipeline.py` |
+| P01 | 第三层 | 既有任务与时空航路图 | P1 | 合成流程已验证：固定巡航高度图及必达服务；任意三维航路配置待扩展 | `planning.py`, `verification.py` |
+| P02 | 第三层 | 学习排序修复候选 | P3 | 接口已定义、待训练；当前固定规则顺序，未宣称学习优化 | `learning.py`, `planning.py` |
+| P03 | 第三层 | 安全时间区间搜索 SIPP | P1/P2 | 合成流程已验证：节点安全区间、连续边、能耗标签；有限图/预算与预约重试，无完备最优保证 | `planning.py`; 边界检查见 `VALIDATION.md` |
+| P04 | 第三层 | 等待、能耗和飞行器资源复核 | P1/P2 | 合成流程已验证：地面/空中等待、线性能耗、余量、任务期限；不用于真实设备 | `planning.py`, `verification.py` |
+| P05 | 第三层 | 多任务预约与有限回溯 | P2 | 预约/连续间距/容量基线已验证；有限次优先级重排、回溯、同机顺序周转尚未实现（后者返回未检查） | `planning.py`, `analysis.py`, `storage.py` |
+| P06 | 第三层 | 修复集合扩展与稳定性优化 | P2 | 保留未影响任务、完整候选复核和变化代价已实现；自动扩展修复集合与联合优化未实现 | `planning.py`, `verification.py` |
+| P07 | 第三层 | 决策价值驱动主动补证 | P2 | 统一请求接口已定义；决策价值估计/改变选择比较未实现，明确 `not_implemented` | `evidence.py` |
+| P08 | 第三层 | 事件驱动滚动维护 | P2 | 更新、版本失效和历史回放基线已实现；已开始任务只提示复核，在途滚动修复未实现 | `pipeline.py`, `storage.py`, `verification.py` |
+| P09 | 第三层 | 条件化输出与用户采纳 | P1/P2 | 条件化候选已验证；SQLite显式采纳/事务版本与预约更新已验证，证据见验收记录 | `verification.py`, `storage.py`; `VALIDATION.md` |
+| P10 | 第三层 | 仿真训练与求解结果标注 | P3 | 未实现：现有合成例用于联调，不是训练/校准集；完整事件划分和参考求解标注待做 | `examples/`, `learning.py` |
+| I01 | 公共能力 | 数据契约、持久化与事件回放 | P0/P1/P2 | 契约与回放已验证；JSON输出和SQLite本地历史已实现 | `contracts.py`, `world.py`, `storage.py`, `cli.py` |
+| I02 | 公共能力 | 前后端集成与方案比较 | P4 | CLI/结构化后端结果已实现；前端、可视化时间轴未实现 | `pipeline.py`, `cli.py` |
+| I03 | 公共能力 | 独立参考检查与对照实验 | P1/P4 | 必要语义回归已验证；几何/候选专项检查见验收记录，真实效果/对照指标未运行 | `tests/`; `VALIDATION.md` |
+| I04 | 公共能力 | 数据来源、模型记录与运行说明 | 全程 | 合成来源、环境、安装/演示和缺项说明已记录；无真实数据或训练权重 | `README.md`, `ENVIRONMENT.md`, `DATA_CONTRACTS.md`, `VALIDATION.md` |
+
+实现文件均相对于 `src/chengkong/`。W07 保留为后续研究扩展；其他方法同样不因首轮局限而删除。`docs/source/` 当前未提供标注最终版的 3.2，后续必须核对原稿与本清单差异。
