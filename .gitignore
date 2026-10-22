@@ -49,3 +49,10 @@ artifacts/
 
 # Python package installation metadata
 *.egg-info/
+
+# Explicit project service configuration and generated model/data files
+config/*.local.json
+*.npz
+*.ubj
+*.pkl
+*.pickle

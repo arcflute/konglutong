@@ -43,3 +43,9 @@ cooperative_planning代理负责planning/analysis/verification及cooperation/exe
 恢复位置：root完善CLI/本地Web，8765仅loopback的QA服务；服务在启动时加载代码，代码改动后需重启。浏览器已下载至数据盘，ldd定位缺libgbm/libasound；正尝试仅下载deb并解压到数据盘，不改系统库/驱动。HTTP集成与SQLite失败回滚由events_evidence后续任务验证。不要重复训练已完成模型。
 
 学习阶段已验证8项必要检查及规则/学习实际pipeline对照。最终模型版本与完整测试集指标在configs/learning-artifacts.json；默认规则，未重训追指标。
+
+## 收尾检查位置
+
+最终集成回归已实际执行136项通过（8.973秒），日志runs/round2-final-tests.txt；Web真实浏览器6组操作/14次API调用/0脚本错误，截图包含中文字体。CLI规则、12快照、inflight和learned实际运行通过，evaluate重新加载产物完成。Agent补证闭环专项9项及HTTP8项已包含在该回归中。
+
+根代理追加只读复核同机驻留与短时施工包络交叠边界，交由cooperative_planning实证检查；如果发现实际遗漏，修复后只补必要回归，不重复训练。其余收尾为阶段提交、文档与QA服务停机；真实服务未配置仍为明确限制。

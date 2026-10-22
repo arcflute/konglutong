@@ -1,0 +1,7 @@
+{
+  "provider": "structured_http",
+  "endpoint": "http://127.0.0.1:9999/parse",
+  "api_key_env": "CHENGKONG_VLM_API_KEY",
+  "timeout_s": 10,
+  "note": "Example only. Copy to multimodal.local.json ONLY for an explicitly configured project service. This endpoint is not running by default."
+}
