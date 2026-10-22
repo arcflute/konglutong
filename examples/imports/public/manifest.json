@@ -1,0 +1,22 @@
+{
+  "retrieved_at_utc": "2026-10-22T17:39:34.091943+00:00",
+  "source_url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2020-01-01&endtime=2020-01-02&minmagnitude=5&limit=1&orderby=time-asc&contributor=us",
+  "publisher": "USGS Earthquake Hazards Program",
+  "license": "USGS-produced public-domain factual data; no third-party imagery copied",
+  "license_url": "https://www.usgs.gov/faqs/are-usgs-reportspublications-copyrighted",
+  "format_documentation": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php",
+  "purpose": "Negative external GeoJSON contract example only; not construction evidence and never merged into the synthetic park",
+  "missing_fields": [
+    "local surveyed coordinate mapping",
+    "local height datum",
+    "construction entities and field provenance",
+    "relative simulation time origin"
+  ],
+  "is_construction_material": false,
+  "mixed_with_park": false,
+  "status": "retrieved",
+  "bytes": 1062,
+  "sha256": "ebb15085d03f62f0f967941ce8f1e63910f0a2173193560a47610e6c9ba8ed77",
+  "feature_count": 1,
+  "expected_import_status": "unsupported_no_surveyed_mapping"
+}

@@ -1,0 +1,2 @@
+id,record_type,source_id,effective_at_s,observed_at_s,valid_until_s,payload_json
+delay_record,field_evidence,structured_demo,60,60,,"{""object_id"": ""lifting_1"", ""field"": ""planned_interval"", ""value"": [120, 600]}"

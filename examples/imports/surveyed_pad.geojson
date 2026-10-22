@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "surveyed_pad",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.0,
+          30.0,
+          100.0
+        ]
+      },
+      "properties": {
+        "id": "surveyed_pad",
+        "record_type": "pad",
+        "source_id": "structured_demo",
+        "effective_at_s": 60,
+        "observed_at_s": 60,
+        "locator": "synthetic-record:surveyed_pad",
+        "payload": {
+          "id": "surveyed_pad_entity",
+          "capacity": 1,
+          "ground_wait_allowed": true
+        }
+      }
+    }
+  ]
+}

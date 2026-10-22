@@ -45,3 +45,5 @@
 |---|---|---|
 | 参数化吊装回转/升降/暂停/连续停放 | motion.py、world、analysis、verification、独立reference_geometry已接通 | 12个专项通过；有速度界误差膨胀，未知姿态用全范围；不含摆动/变幅/遥测 |
 | 动态航路维护 | 连续时变分析及候选复核；SIPP保守范围搜索 | 9条约束实例产生1个复核候选；运动间隙感知SIPP待实现 |
+| 结构化输入与字段补证 | imports/field_evidence、多模态受控Agent；JSON/CSV/受限GeoJSON、6个字段 | 导入12、多模态13专项；有尺度对应点才转换；不支持任意投影/字段 |
+| 来源冲突与更新 | 原生事件和字段断言统一核对，显式来源裁决，先提议后接受 | 后上传不自动覆盖，plan/reservation/rule/model版本失效；当前过程内服务调用预算 |

@@ -1,0 +1,214 @@
+{
+  "schema_version": "chengkong-material-v1",
+  "data_kind": "synthetic",
+  "is_real_case": false,
+  "coordinate_system": {
+    "type": "local_cartesian",
+    "unit": "m",
+    "axes": [
+      "x_east",
+      "y_north",
+      "z_up"
+    ],
+    "origin": "fictional_flat_park",
+    "height_datum": "local_flat_ground_z0",
+    "georeferenced": false
+  },
+  "time_system": {
+    "type": "relative_simulation_seconds",
+    "origin_label": "synthetic_t0",
+    "interval_convention": "[start,end)"
+  },
+  "sources": [
+    {
+      "id": "structured_demo",
+      "kind": "synthetic_record",
+      "description": "Explicit fictional construction materials for offline workflow validation",
+      "license": "Project synthetic example; no real location claim"
+    }
+  ],
+  "records": [
+    {
+      "id": "facility_new",
+      "record_type": "facility",
+      "source_id": "structured_demo",
+      "effective_at_s": 60,
+      "observed_at_s": 60,
+      "locator": "synthetic-record:facility_new",
+      "payload": {
+        "id": "import_crane",
+        "physical_geometry": [
+          {
+            "type": "vertical_cylinder",
+            "center_xy_m": [
+              700,
+              600
+            ],
+            "radius_m": 3,
+            "z_min_m": 0,
+            "z_max_m": 40
+          }
+        ]
+      }
+    },
+    {
+      "id": "building_new",
+      "record_type": "building",
+      "source_id": "structured_demo",
+      "effective_at_s": 60,
+      "observed_at_s": 60,
+      "locator": "synthetic-record:building_new",
+      "payload": {
+        "id": "import_building",
+        "geometry": {
+          "type": "aabb",
+          "min_m": [
+            800,
+            650,
+            0
+          ],
+          "max_m": [
+            820,
+            670,
+            20
+          ]
+        }
+      }
+    },
+    {
+      "id": "pad_new",
+      "record_type": "pad",
+      "source_id": "structured_demo",
+      "effective_at_s": 60,
+      "observed_at_s": 60,
+      "locator": "synthetic-record:pad_new",
+      "payload": {
+        "id": "import_pad",
+        "position_m": [
+          900,
+          700,
+          0
+        ],
+        "capacity": 1,
+        "ground_wait_allowed": true
+      }
+    },
+    {
+      "id": "task_new",
+      "record_type": "task",
+      "source_id": "structured_demo",
+      "effective_at_s": 60,
+      "observed_at_s": 60,
+      "locator": "synthetic-record:task_new",
+      "payload": {
+        "id": "import_task",
+        "aircraft_id": "import_aircraft",
+        "plan_version": 1,
+        "priority": 1,
+        "departure_time_s": 650,
+        "deadline_s": 890,
+        "launch_pad_id": "import_pad",
+        "landing_pad_id": "import_pad",
+        "mandatory_services": [
+          {
+            "id": "import_service",
+            "position_m": [
+              880,
+              700,
+              30
+            ],
+            "duration_s": 10,
+            "position_tolerance_m": 0.1,
+            "window_s": [
+              700,
+              850
+            ]
+          }
+        ],
+        "trajectory": [
+          {
+            "time_s": 650,
+            "position_m": [
+              900,
+              700,
+              0
+            ]
+          },
+          {
+            "time_s": 680,
+            "position_m": [
+              900,
+              700,
+              30
+            ]
+          },
+          {
+            "time_s": 700,
+            "position_m": [
+              880,
+              700,
+              30
+            ]
+          },
+          {
+            "time_s": 710,
+            "position_m": [
+              880,
+              700,
+              30
+            ]
+          },
+          {
+            "time_s": 730,
+            "position_m": [
+              900,
+              700,
+              30
+            ]
+          },
+          {
+            "time_s": 760,
+            "position_m": [
+              900,
+              700,
+              0
+            ]
+          }
+        ],
+        "nominal_horizontal_speed_mps": 10,
+        "nominal_vertical_speed_mps": 5,
+        "protection_radius_m": 3,
+        "energy_assumptions": {
+          "unit": "synthetic_energy_unit",
+          "capacity": 400,
+          "airborne_cost_per_s": 1,
+          "ground_wait_cost_per_s": 0,
+          "required_landing_reserve": 20,
+          "status": "synthetic_simplified_model"
+        }
+      }
+    },
+    {
+      "id": "resource_new",
+      "record_type": "resources",
+      "source_id": "structured_demo",
+      "effective_at_s": 60,
+      "observed_at_s": 60,
+      "locator": "synthetic-record:resource_new",
+      "payload": {
+        "waiting_areas": [
+          {
+            "id": "import_wait",
+            "position_m": [
+              900,
+              700,
+              0
+            ],
+            "capacity": 2,
+            "ground_wait_allowed": true
+          }
+        ]
+      }
+    }
+  ]
+}

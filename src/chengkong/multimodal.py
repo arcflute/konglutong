@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from .contracts import ContractError,number,stable_id,validate_event
+from .contracts import ContractError,number,stable_id,validate_event,integer
 from .world import apply_event
 from .evidence import generate_requests
 
@@ -36,6 +36,8 @@ def project_config(root):
     data['api_key']=os.environ.get(key_name,'')
     data['timeout_s']=number(data.get('timeout_s',10),'timeout_s',minimum=0.1)
     if data['timeout_s']>60:raise ContractError('multimodal_timeout_must_not_exceed_60_seconds')
+    data['max_calls']=integer(data.get('max_calls',3),'multimodal.max_calls',1)
+    if data['max_calls']>100:raise ContractError('multimodal_session_call_budget_must_not_exceed_100')
     return data
 
 
@@ -47,10 +49,15 @@ class DisabledAdapter:
 
 class StructuredHTTPAdapter:
     """POST normalized records/context; expects the documented JSON event schema."""
-    def __init__(self,config):self.config=config
+    def __init__(self,config):self.config=config;self.calls_used=0
 
     def parse(self,records,context):
-        body=json.dumps({'records':records,'context':context,'response_schema':'chengkong-extraction-v1'},allow_nan=False).encode()
+        if self.calls_used>=self.config.get('max_calls',3):
+            return {'status':'budget_exhausted','provider':'structured_http','candidate_events':[],
+                    'calls_used':self.calls_used,'real_service_connected':False}
+        self.calls_used+=1
+        body=json.dumps({'records':records,'context':context,'response_schema':'chengkong-extraction-v1',
+                         'model_id':self.config.get('model_id')},allow_nan=False).encode()
         headers={'Content-Type':'application/json','Accept':'application/json'}
         if self.config.get('api_key'):headers['Authorization']='Bearer '+self.config['api_key']
         request=urllib.request.Request(self.config['endpoint'],data=body,headers=headers,method='POST')
@@ -60,7 +67,8 @@ class StructuredHTTPAdapter:
                 if len(payload)>1_048_576:return {'status':'invalid_response','reason':'response_too_large','candidate_events':[]}
                 parsed=json.loads(payload)
                 if not isinstance(parsed,dict):raise ValueError('response_not_object')
-                return {**parsed,'status':'service_response','provider':'structured_http','real_service_connected':True}
+                return {**parsed,'status':'service_response','provider':'structured_http','real_service_connected':True,
+                        'calls_used':self.calls_used,'model_id':self.config.get('model_id')}
         except (TimeoutError,socket.timeout):
             return {'status':'timeout','candidate_events':[],'real_service_connected':False}
         except urllib.error.HTTPError as exc:
@@ -125,9 +133,17 @@ class MaterialAgent:
                     query_status='not_queried',answer=None)
                 requests.append(request)
         triggered={(r['object_id'],r['field']) for r in requests}
+        from .field_evidence import make_field_request, SUPPORTED_FIELDS
         for row in field_review:
             if row['status']=='mapped_visible_information_gap':
                 row['status']='budgeted_evidence_request_ready' if (row['object_id'],row['field']) in triggered else 'no_current_decision_value_trigger'
+            elif row.get('object_id') and row.get('field') in SUPPORTED_FIELDS:
+                request=make_field_request(world,row['object_id'],row['field'],reason='material_agent_missing_supported_field',
+                    max_queries=1,deadline_s=min(world['horizon_s'][1],world['as_of_s']+60))
+                request.update(initiator='material_agent',material_record_ids=sorted(visible),query_status='not_queried')
+                requests.append(request);row['status']='field_evidence_request_ready'
+            elif row.get('object_id') and row.get('field')!='completion_status':
+                row['status']='unsupported_field'
         result['field_review']=field_review
         result['evidence_requests']=requests
         result['material_query_scope']={'visible_record_ids':sorted(visible),
@@ -182,7 +198,7 @@ class MaterialAgent:
                         raise ContractError('evidence_quote_not_present')
                 def contains_geometry(value):
                     if isinstance(value,dict):
-                        return any(key in ('physical_geometry','activity_envelope','geometry') or contains_geometry(item)
+                        return any(key in ('physical_geometry','activity_envelope','geometry','motion_model','parameters','parking_pose') or contains_geometry(item)
                                    for key,item in value.items())
                     return isinstance(value,list) and any(contains_geometry(item) for item in value)
                 if contains_geometry(event):
@@ -215,6 +231,9 @@ class MaterialAgent:
                 digest=hashlib.sha256(json.dumps([event,refs,context],sort_keys=True).encode()).hexdigest()[:20]
                 proposal={'id':'material-'+digest,'event':event,'evidence_refs':copy.deepcopy(refs),
                           'base_environment_version':world['environment_version'],'scenario_id':world['scenario_id'],
+                          'base_plan_versions':{task['id']:task['plan_version'] for task in world['tasks']},
+                          'base_reservation_version':world.get('reservation_version',1),
+                          'rule_version':world['rule_version'],'model_version':world['model_version'],
                           'data_kind':'synthetic_mock' if result['provider']=='explicit_mock' else 'record_assertion',
                           'status':'awaiting_explicit_acceptance','model_self_confidence_is_not_calibrated':True}
                 self.proposals[proposal['id']]=copy.deepcopy(proposal);result['proposals'].append(proposal)
@@ -229,6 +248,10 @@ class MaterialAgent:
         if proposal is None:return {'status':'proposal_not_found','world_updated':False},world
         if proposal['base_environment_version']!=world['environment_version'] or proposal['scenario_id']!=world['scenario_id']:
             return {'status':'needs_recheck','world_updated':False},world
+        if (proposal.get('base_plan_versions')!={task['id']:task['plan_version'] for task in world['tasks']} or
+            proposal.get('base_reservation_version')!=world.get('reservation_version',1) or
+            any(proposal.get(key)!=world[key] for key in ('rule_version','model_version'))):
+            return {'status':'needs_recheck','reason':'plan_reservation_or_method_version_changed','world_updated':False},world
         updated=apply_event(world,proposal['event'])
         audit={'status':'applied','proposal_id':proposal_id,'world_updated':True,
                'before_environment_version':world['environment_version'],'after_environment_version':updated['environment_version'],
