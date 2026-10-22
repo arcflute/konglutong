@@ -6,6 +6,7 @@ from .resources import aircraft_continuity, waiting_reservations, capacity_confl
 
 from .geometry import (EPS, UnsupportedGeometry, distance, geometry_bounds,
                        geometry_method, interpolate, segment_occupancy, vector)
+from .motion import occupancy_intervals
 
 
 def _finite(value):
@@ -106,7 +107,13 @@ def check_task(task, constraints, world, from_time_s=None):
                     report["screened_out_pairs"] += 1
                     continue
                 related = True
-                occupancies = segment_occupancy(p0,p1,geometry,radius)
+                dynamic_detail = None
+                if 'motion' in constraint:
+                    absolute, dynamic_detail = occupancy_intervals(p0,p1,t0,t1,constraint,radius)
+                    occupancies = [((a-t0)/(t1-t0),(b-t0)/(t1-t0)) for a,b in absolute]
+                    raw_absolute, _ = occupancy_intervals(p0,p1,t0,t1,constraint,0.) if absolute else ([],{})
+                else:
+                    occupancies = segment_occupancy(p0,p1,geometry,radius)
                 report["continuous_pairs_checked"] += 1
             except (UnsupportedGeometry,KeyError,TypeError,ValueError) as exc:
                 report["unchecked"].append({"constraint_id":cid,"segment_index":index,
@@ -118,7 +125,9 @@ def check_task(task, constraints, world, from_time_s=None):
                     continue
                 a,b = overlap
                 raw_overlaps = []
-                for raw_lo,raw_hi in segment_occupancy(p0,p1,geometry,0.0):
+                raw_occupancies = ([((a-t0)/(t1-t0),(b-t0)/(t1-t0)) for a,b in raw_absolute]
+                                   if dynamic_detail is not None else segment_occupancy(p0,p1,geometry,0.0))
+                for raw_lo,raw_hi in raw_occupancies:
                     raw_time = _intersection_time(t0+raw_lo*(t1-t0),t0+raw_hi*(t1-t0),t0,t1,cs,ce)
                     if raw_time is not None:
                         raw_overlaps.append(list(raw_time))
@@ -128,7 +137,7 @@ def check_task(task, constraints, world, from_time_s=None):
                     "contact_at_single_instant":a == b,
                     "entry_position_m":interpolate(p0,p1,(a-t0)/(t1-t0)),
                     "exit_position_m":interpolate(p0,p1,(b-t0)/(t1-t0)),
-                    "protection_radius_m":radius,"method":geometry_method(geometry),
+                    "protection_radius_m":radius,"method":dynamic_detail['method'] if dynamic_detail else geometry_method(geometry),
                     "reason":constraint.get("reason",constraint.get("kind")),
                     "source_ids":constraint.get("source_ids",[]),
                     "trigger":"protection_margin_only" if not raw_overlaps else
@@ -138,9 +147,14 @@ def check_task(task, constraints, world, from_time_s=None):
                     "observed_at_s":constraint.get("observed_at_s"),
                     "environment_version":world.get("environment_version"),
                     "rule_version":world.get("rule_version"),"scenario_id":world.get("scenario_id")})
+                if dynamic_detail is not None:
+                    report['conflicts'][-1]['dynamic_check'] = dynamic_detail
+                    report['conflicts'][-1]['component'] = constraint['motion']['component']
+                    report['conflicts'][-1]['contact_certainty'] = 'conservative_possible_contact'
         if related:
             report["associations"].append({"task_id":task.get("id"),"constraint_id":cid,
-                                            "method":"conservative_time_and_bounding_box"})
+                                            "method":"conservative_time_and_bounding_box",
+                                            **({'detailed_check':'time_resolved_motion_with_velocity_bound'} if 'motion' in constraint else {})})
     return _finish(report)
 
 

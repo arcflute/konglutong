@@ -160,7 +160,11 @@ def search_task(task,world,constraints,reservations=(),allow_detour=True,max_exp
     try:
         for constraint in constraints:
             _geometry_bounds(constraint['geometry'])
-        return _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s, None if timeout_s is None else time.monotonic()+max(0.,timeout_s))
+        result = _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s, None if timeout_s is None else time.monotonic()+max(0.,timeout_s))
+        if any('motion' in c for c in constraints):
+            result['motion_search_policy']='conservative_full_motion_envelope; final review uses time-resolved checks'
+            result['motion_search_limitation']='can miss routes that are feasible only between moving equipment poses'
+        return result
     except (UnsupportedGeometry,TypeError,KeyError,ValueError) as exc:
         return {'status':'unsupported_or_incomplete_search_input','reason':str(exc)}
 

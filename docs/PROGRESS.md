@@ -52,3 +52,7 @@
 分工：round3_motion负责motion及world/contracts/geometry/analysis/planning/verification/reference接线；round3_imports负责imports/field_evidence、evidence/multimodal与材料模板；round3_learning负责独立round3数据/训练评估及runtime兼容；root负责pipeline/storage/cli/web/static、集成与总文档。所有Git提交由root选择文件集合执行。
 
 当前发现：敏感性未接精算顺序；GNN旧标签人工邻域平滑；ranker并列标签被字母打破；需要实际预算/运行时间/共同成功集对照。见ROUND3_AUDIT。没有最终稿/API配置不阻止其余工作；Sites技能只走local-only实现与验证，不注册/同步/发布。
+
+第三轮阶段2已完成：参数化回转/升降、暂停保持、连续停放、四个物理部件与活动保护接入时变检查和独立时间距离参考；12个motion专项及旧事件9/规划7/复核11/参考3专项通过。9条约束实算检出任务1/2冲突、3无冲突，并生成1个复核通过候选。SIPP仍采用全范围保守搜索，动态间隙搜索未实现。实现/容差/速度误差界见MOTION。
+
+集成进行中：结构化材料→接受→重算、原候选失效、字段预算、导入任务SQLite原子更新、空间预览不推进知识时刻等12个Web专项通过（runs/round3/web-targeted.txt）。正在做新浏览器流程及字段新材料反馈。round3模型已冻结选型，独立最终评估进行中；已起飞局部动作标签问题在开启test前修正，旧训练保留供审计。

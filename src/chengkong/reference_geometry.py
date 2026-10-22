@@ -57,9 +57,44 @@ def check_reference_task(task,constraints,from_time_s=None):
             try:
                 p=_mix(a['position_m'],b['position_m'],(low-t0)/(t1-t0))
                 q=_mix(a['position_m'],b['position_m'],(high-t0)/(t1-t0));pairs+=1
-                if segment_intersects(p,q,c['geometry'],task['protection_radius_m']):
+                if 'motion' in c:
+                    intersects = dynamic_intersects(p,q,low,high,c['motion'],task['protection_radius_m'])
+                else:
+                    intersects = segment_intersects(p,q,c['geometry'],task['protection_radius_m'])
+                if intersects:
                     hits.append({'task_id':task['id'],'constraint_id':c['id'],'segment_index':index})
             except (KeyError,ValueError,TypeError,ZeroDivisionError) as exc:
                 unchecked.append({'task_id':task['id'],'constraint_id':c.get('id'),'reason':'independent_reference_incomplete','detail':str(exc)})
-    return {'method':'independent_convex_distance_minimization_100_iterations',
+    return {'method':'independent_convex_distance_minimization_100_iterations_and_dynamic_Lipschitz_branch_bounds',
         'distance_tolerance_m':TOL,'conflicts':hits,'unchecked':unchecked,'pairs_checked':pairs}
+
+
+def dynamic_intersects(a,b,t0,t1,descriptor,radius):
+    """Independent coupled-time bound, not planner/static root reuse.
+
+    Distance to the moving solid is (aircraft speed + obstacle speed)-Lipschitz
+    on each continuous rule segment. Positive midpoint distance above that
+    bound proves separation; unresolved intervals <= 0.01 s are conservatively
+    occupied. The rule kinematics and declared speed limits are shared inputs,
+    but the collision procedure imports no primary geometry primitives.
+    """
+    from .motion import geometry_at, pose_at, motion_breakpoints, component_speed
+    if descriptor.get('motion_status') != 'supported':
+        raise ValueError('dynamic reference unsupported/unknown motion')
+    flight_speed = math.dist(a,b)/(t1-t0)
+    obstacle_speed = component_speed(descriptor)
+    cuts = motion_breakpoints(descriptor,t0,t1)
+    stack = list(zip(cuts,cuts[1:])); iterations=0
+    while stack:
+        lo,hi=stack.pop(); mid=(lo+hi)/2;iterations+=1
+        if iterations>50000:
+            raise ValueError('independent dynamic reference budget exhausted')
+        p=_mix(a,b,(mid-t0)/(t1-t0)); g=geometry_at(descriptor,mid)
+        d=_distance(p,g,radius)
+        speed=flight_speed+(0. if pose_at(descriptor,mid) is None else obstacle_speed)
+        if d > speed*(hi-lo)/2+TOL:
+            continue
+        if d <= TOL or hi-lo<=0.01:
+            return True
+        stack.extend(((lo,mid),(mid,hi)))
+    return False

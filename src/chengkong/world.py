@@ -39,6 +39,17 @@ def _gaps(world):
         {'object_id': a['id'], 'field': 'completion_status', 'status': 'unknown',
          'planned_end_s': a['planned_interval_s'][1], 'not_a_prediction': True}
         for a in world['activities'] if a['completion_status'] != 'confirmed']
+    from .motion import validate_motion
+    for facility in world['facilities']:
+        if 'motion_model' not in facility:
+            continue
+        model=facility['motion_model']; status=validate_motion(model)
+        if status != 'supported':
+            world['information_gaps'].append({'object_id':facility['id'],'field':'motion_model','status':status,
+                                              'reason':'motion parameters incomplete or outside supported crane contract'})
+        elif model.get('parking_pose') is None:
+            world['information_gaps'].append({'object_id':facility['id'],'field':'parking_pose','status':'unknown',
+                                              'reason':'completion does not establish a parking pose; full declared range retained'})
 
 
 def visible_world(raw: dict, scenario_id: str, as_of_s: float) -> dict:
@@ -158,11 +169,27 @@ def _replay(world):
                     raise ContractError('conflicting removal times require explicit correction workflow')
                 obj.update(installed=False, removal_confirmed=True, removal_confirmed_at_s=effective)
             elif kind in ('facility_geometry_changed', 'facility_pose_changed'):
+                if 'motion_model' in obj:
+                    raise ContractError('motion-enabled facility requires facility_motion_changed; static geometry cannot silently override kinematics')
                 obj['physical_geometry'] = deepcopy(event['physical_geometry'])
                 if 'pose' in event:
                     obj['pose'] = deepcopy(event['pose'])
                 if 'parameters' in event:
                     obj['parameters'] = deepcopy(event['parameters'])
+            elif kind == 'facility_motion_changed':
+                from .motion import validate_motion, motion_descriptor, pose_at
+                old_model,new_model=obj.get('motion_model'),event['motion_model']
+                obj_transition=obj.pop('motion_parking_transition',None)
+                if validate_motion(old_model)=='supported' and validate_motion(new_model)=='supported':
+                    related=next((a for a in world['activities'] if a['id']==new_model['activity_id']),None)
+                    if related and related['completion_status']=='confirmed':
+                        current=pose_at(motion_descriptor(old_model,world,oid,obj_transition),effective)
+                        if current is not None and any(not new_model[bounds][0] <= current[field] <= new_model[bounds][1]
+                              for field,bounds in (('angle_deg','angle_range_deg'),('load_z_m','load_z_range_m'))):
+                            raise ContractError('updated motion range excludes current parking transition pose; explicit geometry correction requires re-import')
+                        obj['motion_parking_transition']={'at_s':effective,'from_pose':current,
+                            'target_pose':deepcopy(new_model.get('parking_pose')),'source_id':source_id}
+                obj['motion_model'] = deepcopy(event['motion_model'])
             elif kind in ('activity_started', 'activity_paused', 'activity_resumed', 'activity_envelope_changed'):
                 if obj['completion_status'] == 'confirmed':
                     raise ContractError('completed activity requires a new activity ID for further work')
@@ -183,7 +210,7 @@ def _replay(world):
             obj['source_ids'] = list(dict.fromkeys([obj['source_id'], *obj.get('source_ids', []), source_id]))
         # Occupancy histories retain geometry and paused/active state changes. Plan-end
         # changes and completion are reflected by final metadata and the end boundary.
-        if kind in ('facility_added', 'facility_geometry_changed', 'facility_pose_changed',
+        if kind in ('facility_added', 'facility_geometry_changed', 'facility_pose_changed', 'facility_motion_changed',
                     'activity_started', 'activity_paused', 'activity_resumed', 'activity_envelope_changed'):
             versions = history.setdefault(oid, [])
             if versions and versions[-1]['effective_at_s'] == effective:
@@ -280,6 +307,8 @@ def generate_constraints(world: dict) -> list[dict]:
         if interval[0] >= interval[1]:
             return
         ids = list(dict.fromkeys([obj['source_id'], *obj.get('source_ids', [])]))
+        if isinstance(extra.get('motion',{}).get('model'),dict):
+            ids = list(dict.fromkeys([*ids,*extra['motion']['model'].get('source_ids',[])]))
         constraints.append({
             'id': identifier, 'object_id': obj['id'], 'kind': kind, 'geometry': deepcopy(geometry),
             'geometry_status': validate_geometry(geometry), 'interval_s': interval,
@@ -303,11 +332,26 @@ def generate_constraints(world: dict) -> list[dict]:
             yield i, shape, max(start, row['effective_at_s']), min(end, until), len(rows)
 
     for building in world['buildings']:
-        append(f'physical:{building["id"]}:0', building, 'physical', building.get('geometry'), [start, end], 'building physical occupancy')
+        append(f'physical:{building["id"]}:0', building, 'physical', building.get('geometry'),
+               [max(start,building.get('import_valid_from_s',start)),end], 'building physical occupancy')
     for facility in world['facilities']:
         until = min(end, facility['removal_confirmed_at_s']) if facility['removal_confirmed'] else end
         if facility['installed'] or facility['removal_confirmed']:
             for version, obj, begin, finish, count in versions(facility):
+                if 'motion_model' in obj:
+                    from .motion import motion_descriptor, component_envelope, COMPONENTS
+                    descriptor = motion_descriptor(obj['motion_model'], world,facility['id'],obj.get('motion_parking_transition'))
+                    for component in COMPONENTS if descriptor['motion_status'] == 'supported' else ('unknown_components',):
+                        geometry = (component_envelope(obj['motion_model'], component)
+                                    if descriptor['motion_status'] == 'supported' else None)
+                        cid = f'physical:{facility["id"]}:motion:{component}:v{version}'
+                        append(cid, obj, 'physical', geometry, [begin, min(finish, until)],
+                               'bounded crane motion; physical structure persists after completion', geometry_version=version,
+                               motion={**descriptor, 'component':component, 'clearance_m':0.},
+                               planning_geometry_policy='conservative_full_motion_range',
+                               detailed_check_policy='time_resolved_velocity_bound',
+                               motion_status=descriptor['motion_status'])
+                    continue
                 for i, geometry in enumerate(obj['physical_geometry'] or [None]):
                     cid = f'physical:{facility["id"]}:{i}' + (f':v{version}' if count > 1 else '')
                     append(cid, obj, 'physical', geometry, [begin, min(finish, until)],
@@ -316,6 +360,42 @@ def generate_constraints(world: dict) -> list[dict]:
         confirmed = activity['completion_status'] == 'confirmed'
         until = min(end, activity['completion_confirmed_at_s']) if confirmed else end
         for version, obj, begin, finish, count in versions(activity):
+            facility = next(f for f in world['facilities'] if f['id'] == activity['facility_id'])
+            # Split again at facility model updates, so a late/changed motion
+            # model cannot retroactively replace earlier valid-time geometry.
+            dynamic_parts = []
+            for fv, fobj, flo, fhi, _ in versions(facility):
+                lo, hi = max(begin,flo,activity['planned_interval_s'][0]), min(finish,fhi,until)
+                if lo >= hi:
+                    continue
+                model = fobj.get('motion_model')
+                if isinstance(model,dict) and model.get('activity_policy') == 'moving_components_with_clearance' and model.get('activity_id') == activity['id']:
+                    from .motion import motion_descriptor, component_envelope, COMPONENTS
+                    descriptor = motion_descriptor(model,world,facility['id'],fobj.get('motion_parking_transition'))
+                    for component in COMPONENTS if descriptor['motion_status'] == 'supported' else ('unknown_components',):
+                        clearance = model.get('activity_clearance_m',0.)
+                        geometry = (component_envelope(model,component,clearance)
+                                    if descriptor['motion_status'] == 'supported' else None)
+                        append(f'activity:{activity["id"]}:motion:{component}:v{version}:f{fv}', obj, 'activity',
+                               geometry,[lo,hi], 'explicit moving-component activity protection; completion not inferred from plan',
+                               motion={**descriptor,'component':component,'clearance_m':clearance},
+                               motion_status=descriptor['motion_status'], completion_status=activity['completion_status'],
+                               planned_interval_s=list(activity['planned_interval_s']),end_is_confirmed=confirmed,
+                               calibrated=False,geometry_version=version, operational_status=obj.get('operational_status','active_or_planned'),
+                               planning_geometry_policy='conservative_full_motion_range',
+                               detailed_check_policy='time_resolved_velocity_bound')
+                    dynamic_parts.append((lo,hi))
+                else:
+                    dynamic_parts.append((lo,hi,'static'))
+            if any(len(part)==2 for part in dynamic_parts):
+                # Preserve explicitly recorded static envelopes in earlier
+                # intervals before a motion model was introduced.
+                for part in dynamic_parts:
+                    if len(part)==3:
+                        append(f'activity:{activity["id"]}:static:v{version}:{part[0]}',obj,'activity',obj.get('activity_envelope'),list(part[:2]),
+                               'recorded activity envelope before/after motion policy',completion_status=activity['completion_status'],
+                               planned_interval_s=list(activity['planned_interval_s']),end_is_confirmed=confirmed,calibrated=False)
+                continue
             cid = f'activity:{activity["id"]}' + (f':v{version}' if count > 1 else '')
             append(cid, obj, 'activity', obj.get('activity_envelope'),
                    [max(begin, activity['planned_interval_s'][0]), min(finish, until)],

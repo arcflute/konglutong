@@ -307,6 +307,13 @@ def validate_snapshot(snapshot: JSON) -> None:
                 raise ContractError(f'facility.{key} must be boolean')
         for geometry in sequence(facility.get('physical_geometry'), 'physical_geometry'):
             validate_geometry(geometry)
+        if 'motion_model' in facility:
+            from .motion import validate_motion
+            validate_motion(facility['motion_model'])
+            if isinstance(facility['motion_model'], dict):
+                for source_id in facility['motion_model'].get('source_ids', []):
+                    if source_id not in sources:
+                        raise ContractError('motion parameter references missing source: '+source_id)
         removed = facility.get('removal_confirmed_at_s')
         if facility['removal_confirmed']:
             if removed is None or number(removed, 'removal_confirmed_at_s', minimum=0) > as_of:
@@ -359,6 +366,9 @@ def validate_event(event: JSON, world: JSON | None = None) -> None:
             validate_geometry(geometry)
         if facility.get('removal_confirmed', False) or facility.get('installed', True) is not True:
             raise ContractError('new facility must be installed and not removed')
+        if 'motion_model' in facility:
+            from .motion import validate_motion
+            validate_motion(facility['motion_model'])
     elif kind == 'activity_started' and 'activity' in event:
         activity = mapping(event['activity'], 'event.activity')
         stable_id(activity.get('id'), 'event.activity.id')
@@ -382,11 +392,16 @@ def validate_event(event: JSON, world: JSON | None = None) -> None:
             validate_geometry(event['activity_envelope'])
         if kind == 'activity_envelope_changed' and 'activity_envelope' not in event:
             raise ContractError('activity_envelope_changed requires an explicit envelope or null unknown')
-    elif kind in ('facility_removal_confirmed', 'facility_geometry_changed', 'facility_pose_changed'):
+    elif kind in ('facility_removal_confirmed', 'facility_geometry_changed', 'facility_pose_changed', 'facility_motion_changed'):
         stable_id(event.get('facility_id'), 'event.facility_id')
         if world is not None and event['facility_id'] not in {f['id'] for f in world['facilities']}:
             raise ContractError('event references missing facility')
-        if kind != 'facility_removal_confirmed':
+        if kind == 'facility_motion_changed':
+            if 'motion_model' not in event:
+                raise ContractError('facility_motion_changed requires explicit model or null unknown')
+            from .motion import validate_motion
+            validate_motion(event['motion_model'])
+        elif kind != 'facility_removal_confirmed':
             for geometry in sequence(event.get('physical_geometry'), 'event.physical_geometry'):
                 validate_geometry(geometry)
     else:
