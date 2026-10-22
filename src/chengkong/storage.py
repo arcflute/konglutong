@@ -85,7 +85,7 @@ class PlanStore:
             return [{'id':row[0],'state_revision':row[1],'result':json.loads(row[2])}
                     for row in db.execute('SELECT id,state_revision,payload FROM decisions ORDER BY id')]
 
-    def replace_world(self,world,expected_revision=None):
+    def replace_world(self,world,expected_revision=None,*,task_additions=None):
         """Publish an event or clock update; never import another branch's plans."""
         validate_world(world)
         with self._connect() as db:
@@ -96,6 +96,20 @@ class PlanStore:
             if world['scenario_id']!=old['scenario_id'] or world['as_of_s']<old['as_of_s']:
                 raise ValueError('world_update_cannot_switch_scenario_or_reverse_observation_time')
             if world['environment_version']<old['environment_version']:raise ValueError('environment_version_must_not_decrease')
+            additions=list(task_additions or [])
+            incoming={t['id']:t for t in world['tasks']}
+            if additions:
+                if len(set(additions))!=len(additions):raise ValueError('duplicate_imported_task_id')
+                previous={t['id']:t for t in old['tasks']}
+                incoming={t['id']:t for t in world['tasks']}
+                if any(tid in previous or tid not in incoming for tid in additions):
+                    raise ValueError('task_additions_must_be_new_declared_tasks')
+                if set(incoming)!=set(previous)|set(additions) or any(incoming[tid]!=t for tid,t in previous.items()):
+                    raise ValueError('import_cannot_modify_current_tasks')
+                if any(incoming[tid]['trajectory'][0]['time_s']<world['as_of_s'] for tid in additions):
+                    raise ValueError('cannot_import_already_started_task')
+                if world['environment_version']<=old['environment_version']:
+                    raise ValueError('task_import_requires_new_environment_version')
             if world['environment_version']==old['environment_version']:
                 # A clock tick may change derived snapshots of scheduled events,
                 # which must increment environment_version in the world engine.
@@ -104,8 +118,9 @@ class PlanStore:
                 if changed:raise ValueError('environment_changed_without_version_increment:'+','.join(changed))
                 if world['as_of_s']==old['as_of_s']:return copy.deepcopy(old)
             updated=copy.deepcopy(world)
-            updated['tasks']=copy.deepcopy(old['tasks'])
-            updated['reservation_version']=old.get('reservation_version',1)
+            updated['tasks']=copy.deepcopy(old['tasks'])+[copy.deepcopy(incoming[tid]) for tid in additions]
+            resource_changed=any(old.get(k)!=world.get(k) for k in ('pads','waiting_areas','aircraft_turnaround_model'))
+            updated['reservation_version']=old.get('reservation_version',1)+int(bool(additions) or resource_changed)
             updated['state_revision']=revision+1
             updated['plan_review_status']='needs_recheck'
             reservations,_=pad_reservations(updated['tasks'],updated)

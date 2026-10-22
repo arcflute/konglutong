@@ -1,6 +1,6 @@
 # 首轮实际交付与验证记录（历史）
 
-第二轮当前结果见本文件后半部分；以下首轮条目保留当时状态，不代表当前未实现项。
+最新第三轮结果见本文件末尾；首轮、第二轮条目保留当时状态，不代表当前未实现项。
 
 日期：2026-10-23（Asia/Shanghai）。目录：`/root/autodl-tmp/chengkong-zhihu`。这是合成软件原型的执行记录，不是现实运行认证或完整技术路线完成报告。
 
@@ -248,3 +248,53 @@ tests/test_storage_v2.py
 tests/test_web_api.py
 tests/test_world.py
 ```
+
+# 第三轮实际交付与验证（当前）
+
+从9d30ece干净工作区开始，未重置/强切分支。最终3.2原稿仍未出现，按工程整理版开发。本轮复用独立`.venv`与CPU依赖，无驱动/全局CUDA修改，无远端推送或公网服务。
+
+## 基线、专项和最终检查
+
+| 实际执行 | 结果 | 日志/产物 |
+|---|---|---|
+| 起点Git源码归档独立基线 | 139项通过，8.361秒 | runs/round3-baseline-tests.txt |
+| 参数化动态吊装 | 13项通过；横扫、升降、采样间穿越、暂停、连续停车、未知、迟到、复核/增量一致、同时间指令 | runs/round3-motion-tests.txt；tests/test_motion.py |
+| 导入/字段来源 | 12项通过；JSON/CSV/严格GeoJSON、追加任务、冲突裁决、事件不可绕过、后续重放保持 | tests/test_imports.py；runs/round3/import-{delay,csv,geojson,tasks}.json |
+| 多模态 | 旧9+新增4项通过；图像尺度、受控版本、调用预算 | tests/test_multimodal*.py |
+| 静态历史空间预览 | 1项通过；迟到几何及拆除前有效时段 | tests/test_presentation.py |
+| Web跨层专项 | 旧8项+新增5项均实际通过；新字段材料→提议→接受→重算、事务故障回滚、任务追加/预约、预览不改知识 | runs/round3/web-targeted.txt、web-integration.txt及最终日志 |
+| 一次最终全量回归 | 183项通过，11.801秒，无跳过 | runs/round3/final-tests.txt |
+| 全量discover之后追加的2项边界 | 2项通过，0.643秒；冒号/%ID不得丢pair、校准建议按起飞绝对时间 | runs/round3/final-learning-boundaries-corrected.txt |
+| 学习模块完整专项 | 11项通过；含上述2项，非另增测试数 | runs/round3-learning-tests.txt |
+| 当前测试发现数量 | 185个用例；不声称一次跑了185项 | unittest loader实际发现；全量183+补充2覆盖 |
+| 最终浏览器真实工作流 | 3套完整演示、20次API、0页面异常、桌面与390px移动布局通过 | runs/round3/verified-browser/report.json及5张截图、export.json |
+| 编译、两份JS语法、pip check | 全通过，无依赖破损 | 实际compileall、node --check、pip check输出 |
+| round2原产物保留 | 原17文件SHA256全部一致 | runs/round3/round2-preservation.json；configs/round3-baseline.json |
+
+首次浏览器20次API已经通过；新增局部缩放后的一次验收失败于测试点击缩放后视区外的建筑，改用可见塔身面定位后最终通过。未减少业务断言。新增两项测试首次手写类名错误未执行，更正类名后实际通过；保留原错误日志，不将其算作产品检查失败或成功。
+
+## 已执行的完整流程
+
+- `chengkong analyze --input examples/motion_crane_synthetic.json`：60秒9约束，任务1/2冲突、任务3无冲突，1个完整复核候选，见runs/round3/motion.json。
+- 显式加载round3并在120秒`--inflight --learned`：产生1个候选，模型进入实际精算及联合搜索顺序，见runs/round3/inflight-learned.json。
+- `chengkong demo`：3分支×4时刻的12快照，见runs/round3/event-demo/summary.json。
+- 协同脚本：3次失败重排后成功；绕行新增关联task_3并扩修复集合；同机能量不足正确拒绝，见runs/round3/cooperation/summary.json。
+- 在途脚本：120/210/360秒已执行前缀逐任务保持、当前点/余能保存、历史冲突不抹去，见runs/round3/inflight/summary.json。
+- 4种材料模板实际接受并重新分析，CLI结果保留。Web明确接受才写SQLite；候选采纳为另一步事务。
+- 浏览器：材料字段查询与审查→延期更新→旧候选拒绝→新候选显式采纳；无补证材料保持未知→新合成完成材料通过第一层→任务2冲突消除且塔吊仍在；学习在途协同→规则/学习同版本对照；空间高度/吊装细节→只读未来预览→冲突详情→导出→历史只读回放。没有mock网络响应替代后端求解。
+
+## 模型评估与独立审计
+
+模型synthetic-round3-a774ca1b9f04；数据160独立模板、320事件/快照，80/24/32/24模板分组。训练累计42.922秒（包括测试前作废的前缀标签初稿），未test后调参。实际5类指标、统计单位、失败率、共同成功代价、GNN两seed/去边/节点基线、敏感性检查预算和真实求解计时见LEARNING_ROUND3。
+
+独立只读审查：4数据划分和6权重/校准hash一致；全部7842行pair/action特征及图特征与当前可见world回算一致；固定前6测试事件标签和求解结果重新计算一致；无跨父模板分组泄漏。曾发现合法冒号ID令6个pair缩成5个的漏项，现改可逆键并验证6/6；原最终候选复核仍完整检查，未用学习跳过硬约束。校准条件建议使用错时间原点的问题已修，原评估保留，补正calibration-impact-correction.json单独记录。
+
+首次评估evaluation.json、runtime复现evaluation-reproduction-*.json、强规则诊断diagnostic-addendum.json及校准影响修正各自保存。事后keep→detour也达到92/192，与学习相同；联合12事件/6模板均5成功、14/44任务。GNN去边保留节点degree，是传播增量消融；同机训练0事件。不得据此宣称可靠整体学习优势。
+
+校准32组k30，未校准43/48覆盖、平均108.78秒，校准48/48、平均185.76秒；100%是48个合成事件经验覆盖，只有24独立测试模板，不是现实或任务联合安全概率。在线输出区间，运行影响以离线有条件建议统计；不会释放真实占用或自动插入等待动作。
+
+## 环境与限制
+
+结束检查数据盘仍XFS/rw，总50G、约49G可用；round3模型/评估约1.8MiB、数据约13MiB。未更换环境或安装大型模型。QA HTTP服务和临时SQLite由脚本关闭，不后台常驻。
+
+真实VLM尚无项目配置，未调用；只用明确模拟响应验证契约。真实施工历史学习与现场泛化未做。GeoJSON仅有显式点对应；公开USGS单条负例是格式/拒绝链路测试，不是施工现场资料。运动感知间隙搜索、设备动力学/摆动/变幅、任意字段/坐标转换、真实飞控及多实例过程恢复仍未实现。来源、模型和适用边界详见DATA_SOURCES、IMPORTS、MOTION、MODEL_CARD_ROUND3。

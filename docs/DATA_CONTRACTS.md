@@ -173,3 +173,15 @@ MaterialAgent还输出`evidence_requests/field_review/material_query_scope`。�
 同机累计余量以`baseline_joint_analysis.aircraft_transitions`及候选`review.joint_report.aircraft_transitions`为准；单任务task_metrics中的landing_energy_remaining是满容量起算的局部指标，不可当成同机累计余量。周转地面驻留会进入容量与连续空间分离复核，禁等起降点不能用于长时周转等待；地面运输途中避障与载运车辆容量不在此简化模型内。
 
 周转驻留的对象与独立参考报告分别位于joint_report.stationary_object_reports / stationary_reference_reports；在途复核只在这些字段呈现未来检查，complete_stationary_*保留完整历史检查，historical_conflicts单列已发生冲突。证据查询预算、待接受材料及缓存目前属于单进程会话；施工事件、现行world、预约、候选提案与完整决策记录在SQLite持久保存，尚无跨实例会话恢复。
+
+## 第三轮扩展契约
+
+- `facility.motion_model: crane-motion-v1`：米、秒、度、有来源与速度界的回转/升降程序；`facility_motion_changed`按有效时间分段。部件/暂停/停车规则、误差界和unsupported策略见[MOTION](MOTION.md)。约束含保守`geometry`和实际`motion`，独立复核不能漏传运动信息。
+- `chengkong-material-v1`：明确coordinate_system/time_system/data_kind/sources/records；JSON/CSV/受限GeoJSON；六字段白名单、人工来源裁决及追加任务边界见[IMPORTS](IMPORTS.md)。准备结果冻结环境、计划、预约、规则与模型版本；接受阶段再次验证，过期提议拒绝。
+- `POST /api/import`：content、format、可选metadata→解析/field_review/提议，不写回；`POST /api/import/apply`：proposal_id、可选resolutions→显式接受与重新计算。
+- `POST /api/field/query`：object_id、field或request_id；可附content/format/metadata查询实际上传材料。先通过导入校验，返回实际记录及import_review，不自动接受。服务器维护查询计数；未知、过期、冲突、unsupported均保留。只有明确接受提议才更新第一层，候选采纳另行执行。
+- `GET /api/view?scenario=...&time_s=...`：只读同版本空间快照，future标规则预测；不释放隐藏事件。当前world查看过去仅是按当前知识重建；当时知识必须用`/api/replay`的保存world。
+- `POST /api/compare`：同一当前world/预算实际运行规则与学习，规则侧不执行模型推理，输出单场景耗时与真实候选；不采纳，不作为统计性能证明。
+- `GET /api/export`：`chengkong-export-v3`，含事件、版本、计划、候选差异/条件、证据与字段审查、未解决信息和历史。原结果保持兼容`chengkong-result-v2`，新增checking_schedule明确精算已执行与待检查pair。初始检查预算不是全分析预算，规划/独立复核有自己的必须检查。
+
+未知几何在展示中也不应被解释为空空间。数据库持久化已接受world及事件、当前计划与预约、历史决策；尚未接受导入、查询计数和外部服务调用预算当前为进程内状态，不支持多实例共享恢复。Web端未公开任意文件读取；`/api/template`只返回固定合成模板。文件上传仍受1MB请求上限。

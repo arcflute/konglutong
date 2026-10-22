@@ -101,6 +101,15 @@ class MotionTests(unittest.TestCase):
         resumed=apply_event(paused,event('activity_resumed',180,activity_id='lifting_1'))
         self.assertAlmostEqual(pose_at(physical(resumed,'boom')['motion'],200)['angle_deg'],36)
 
+    def test_same_time_pause_resume_order_matches_world_replay(self):
+        world=world_at(400)
+        pause={**event('activity_paused',150,activity_id='lifting_1'),'id':'z_pause'}
+        resume={**event('activity_resumed',150,activity_id='lifting_1'),'id':'a_resume'}
+        # Receipt order differs from effective/observed/ID replay order.
+        updated=apply_event(apply_event(world,pause),resume)
+        self.assertEqual(updated['activities'][0]['operational_status'],'paused')
+        self.assertAlmostEqual(motion_snapshot(updated,190)['facilities'][0]['pose']['angle_deg'],0)
+
     def test_completion_moves_to_park_continuously_and_tower_remains(self):
         complete=apply_event(world_at(300),event('activity_completion_confirmed',160,activity_id='lifting_1'))
         c=physical(complete,'boom')
@@ -109,6 +118,8 @@ class MotionTests(unittest.TestCase):
         self.assertAlmostEqual(pose_at(c['motion'],210)['angle_deg'],90)
         self.assertTrue(all(c['interval_s'][1]<=160 for c in generate_constraints(complete) if c['kind']=='activity'))
         self.assertEqual(physical(complete,'tower')['interval_s'],[0,900])
+        self.assertEqual(motion_snapshot(complete,200)['facilities'][0]['activity_clearance_m'],0)
+        self.assertGreater(motion_snapshot(complete,150)['facilities'][0]['activity_clearance_m'],0)
         removed=apply_event(complete,event('facility_removal_confirmed',250,facility_id='crane_1'))
         self.assertEqual(physical(removed,'tower')['interval_s'],[0,250])
         self.assertEqual(motion_snapshot(removed,260)['facilities'],[])

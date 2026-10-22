@@ -147,7 +147,9 @@ def pose_at(descriptor, at_s):
 def motion_descriptor(model, world, facility_id=None, parking_transition=None):
     aid = model.get('activity_id') if isinstance(model, dict) else None
     kinds = {'activity_paused':'pause', 'activity_resumed':'resume', 'activity_completion_confirmed':'complete'}
-    commands = [{'at_s': e['effective_at_s'], 'kind':kinds[e['kind']]} for e in world.get('observed_events', [])
+    events=sorted(world.get('observed_events', []),key=lambda e:(e['effective_at_s'],
+        3 if e['kind']=='activity_completion_confirmed' else 2,e['observed_at_s'],e['id']))
+    commands = [{'at_s': e['effective_at_s'], 'kind':kinds[e['kind']]} for e in events
                 if e['kind'] in kinds and e.get('activity_id') == aid and e['effective_at_s'] <= world['as_of_s']]
     activity = next((a for a in world['activities'] if a['id'] == aid), None)
     if activity and activity['completion_status'] == 'confirmed' and not any(c['kind'] == 'complete' for c in commands):
@@ -295,7 +297,13 @@ def motion_snapshot(world, at_s=None):
             row['pose']=pose_at(descriptor,at)
             row['pose_status']='conservative_range' if row['pose'] is None else 'declared_kinematic_rule'
             row['components']=[{'component':part,'geometry':geometry_at(dict(descriptor,component=part),at)} for part in COMPONENTS]
-            row['activity_clearance_m']=historical['motion_model'].get('activity_clearance_m')
+            model=historical['motion_model']
+            activity=next((a for a in world['activities'] if a['id']==model['activity_id']),None)
+            row['activity_active']=bool(activity and at>=activity['planned_interval_s'][0] and
+                (activity['completion_status']!='confirmed' or at<activity['completion_confirmed_at_s']))
+            row['configured_activity_clearance_m']=model.get('activity_clearance_m')
+            row['activity_clearance_m']=(model.get('activity_clearance_m') if row['activity_active'] and
+                model.get('activity_policy')=='moving_components_with_clearance' else 0.)
         result.append(row)
     return {'time_s':at,'environment_version':world['environment_version'],'facilities':result,
             'simulation_only':True,'telemetry_connected':False}

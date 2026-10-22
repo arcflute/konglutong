@@ -1,112 +1,139 @@
-# 城空智护 · 本地合成仿真原型 v0.2
+# 城空智护 · 第三轮本地合成仿真原型
 
-施工信息导入 → 世界状态更新 → 三维时空约束 → 连续航段与资源冲突 → 多任务维护候选 → 独立复核 → 显式采纳。现有 Python 后端、SQLite、CLI 与本地 Web 使用同一计算链路。软件不接真实飞控，不自动采纳建议。
+施工材料 → 来源与字段核对 → 世界事件 → 三维时变占用 → 冲突与补证 → 多任务维护 → 独立复核 → 显式采纳。Python、SQLite、CLI和本地Web使用同一计算后端。全部飞行仅软件仿真。
 
-第二轮已实际训练小型 XGBoost 敏感性、消息传递 GNN、求解前候选排序、结束误差分位数与独立校准模型；全部只在合成数据上验证，规则仍是默认。真实多模态服务及真实施工历史演化模型未接入/未训练。完整状态见 [功能清单](docs/FEATURE_MATRIX.md)、[验收记录](docs/VALIDATION.md)和[学习实验](docs/LEARNING.md)。
+本轮新增参数化吊臂回转/吊物升降/暂停/连续停放、结构化材料与六字段补证、实际精算顺序调度、独立round3小模型评估、空间高度视图和结果导出。规则仍默认：学习模型有部分排序指标改善，但没有可靠的整体运行增益。真实多模态服务与真实施工历史学习仍未接入/未训练。
 
-## 安装与基本计算
+当前状态以[功能清单](docs/FEATURE_MATRIX.md)末尾第三轮记录、[验证](docs/VALIDATION.md)、[学习结果](docs/LEARNING_ROUND3.md)、[模型说明](docs/MODEL_CARD_ROUND3.md)和[恢复位置](docs/PROGRESS.md)为准。round2原数据/模型与第一次round3最终测试结果均保留。
 
-当前服务器已有独立 `.venv`，无需修改系统 Python、驱动或全局 CUDA。纯规则后端只依赖标准库；以下命令在项目根运行：
+## 安装与启动
+
+在项目根执行；当前服务器已有独立`.venv`及CPU学习依赖，本轮复用了它们。纯规则计算只依赖Python标准库，不需CUDA、在线地图令牌或大型模型。
 
 ```bash
 cd /root/autodl-tmp/chengkong-zhihu
-# 新环境才需要安装；脚本复用已有 .venv，不删除文件。
+# 仅新环境需要；复用已存在的项目环境：
 bash scripts/bootstrap.sh
-.venv/bin/chengkong analyze --output runs/analysis-v2.json
-.venv/bin/chengkong demo --output runs/demo-v2
-.venv/bin/chengkong analyze --scenario end_unconfirmed --as-of 360 \
-  --inflight --output runs/inflight-v2.json
-```
+# 仅需要学习功能但尚无依赖时：
+.venv/bin/python -m pip install -r requirements-learning.txt
 
-`python -m chengkong`与`chengkong`入口等价。`demo`生成3个事件分支×4个时刻的12份 JSON 快照。默认快照分析保留历史冲突；`--inflight`显式启用软件仿真中的前缀冻结与余下航程修复。已执行航段不改写，当前点不可无代价移回起点。
-
-## Web 与 SSH 访问
-
-后端同时提供静态前端和 API，没有前端构建步骤。默认只监听 `127.0.0.1`；模型目录必须显式提供：
-
-```bash
-cd /root/autodl-tmp/chengkong-zhihu
+# 前后端同进程；使用新db-dir重演，保留旧库。
 .venv/bin/chengkong serve --host 127.0.0.1 --port 8765 \
-  --db-dir runs/web-demo \
-  --model-dir /root/autodl-tmp/chengkong-models/round2
+  --db-dir runs/web-round3-demo \
+  --model-dir /root/autodl-tmp/chengkong-models/round3
 ```
 
-等价后端入口：`.venv/bin/python -m chengkong.web`，支持相同服务参数。省略`--model-dir`仍可使用全部规则流程，界面如实显示本运行时未加载学习产物。加载模型需要下面的可选学习依赖。
+没有前端构建步骤；等价入口是`.venv/bin/python -m chengkong.web`。省略`--model-dir`可运行规则流程，学习状态明确为未加载。模型权重在数据盘，不能只克隆代码就声称已加载。
 
-在自己的电脑执行（将SSH端口和主机替换为实际值）：
+自己电脑上执行以下命令，并在浏览器打开`http://127.0.0.1:8765`：
 
 ```bash
 ssh -N -L 8765:127.0.0.1:8765 -p <SSH端口> root@<服务器地址>
 ```
 
-浏览器打开 `http://127.0.0.1:8765`。如果本地端口已占用，改为`-L 8766:127.0.0.1:8765`并访问8766。服务在前台运行，Ctrl+C停止；没有配置公网监听、云发布或后台自启动。SQLite保留所选分支的状态；重新演示用新的`--db-dir`，不要删除旧数据库。
+服务仅监听loopback，Ctrl+C停止；没有公网发布、自启动或真实飞控。若本机端口占用，改用`-L 8766:127.0.0.1:8765`并访问8766。
 
-## 可完整操作的演示
-
-使用新的`runs/web-demo`数据库，按以下步骤操作。这套流程已通过浏览器实际调用后端验证。
-
-1. 默认“结束未确认”、60秒：查看3项任务、塔吊和活动包络；“冲突证据”显示任务1、2在航段中间穿过活动范围，即使航段端点都在外也会检出。任务2的冲突区间为395.7–408.3秒，记录的计划结束360秒不能解除占用。
-2. 切换“按期确认结束”，在“维护候选”预览路径。点击左侧“计划延期至600秒”，环境版本改变。点击旧候选的“尝试采纳过期候选”，观察拒绝原因；再显式采纳新候选，计划版本与预约版本原子更新。候选生成本身不改现行任务。
-3. 切回尚未修改的“结束未确认”，推进至360秒。在“主动补证”对第一个请求查询已有记录，结果`unknown`。对另一个触发请求点击“提供明确合成完成记录”，它是使用者明确提供的模拟证据，经第一层校验后更新活动状态；设施仍保留。每请求预算1次，重复查询会预算耗尽，不可靠重试捏造证据。
-4. 勾选“冻结已执行前缀”和“启用合成模型排序”，点击重新计算。在途候选只处理当前时刻以后的航程；“学习与材料”展示真实加载状态、排序建议与结束误差区间。没有候选时查看诊断，不能解释为全局不可行。
-5. 在“学习与材料”解析“合成延期材料（模拟响应）”，先查看待接受提议，再显式接受；准备提议不改世界。真实服务未配置，模拟文字不能当作实际模型识别效果。
-6. 在“事件回放”选择初始状态，查看当时60秒的未知信息；回放禁止修改操作。点击“返回当前状态”，当前360秒计划与信息仍在，历史决策记录没有被后来的证据覆盖。
-
-另一组可重复的协同/资源/在途演示：
+动态吊装使用独立输入和数据库：
 
 ```bash
-.venv/bin/python scripts/demo_cooperation.py --case cooperation --output runs/demo-cooperation
-.venv/bin/python scripts/demo_cooperation.py --case inflight --output runs/demo-inflight
+.venv/bin/chengkong serve --input examples/motion_crane_synthetic.json \
+  --host 127.0.0.1 --port 8766 --db-dir runs/web-round3-motion \
+  --model-dir /root/autodl-tmp/chengkong-models/round3
 ```
 
-两个目录的`summary.json`分别汇总实际回溯、扩展、能量拒绝和前缀冻结结果，解释与实际检查见VALIDATION。
+相应转发8766端口。在空间视图选择“吊装细节”，调整视角和查看时刻，可核对塔身、臂、索、吊物及活动保护。预览未来只使用已知运动规则，不推进模拟时间或释放完成证据；“事件回放”才显示当时保存的知识状态。
 
-## 学习训练、评估和实验推理
+## 三套完整演示
 
-现有模型版本 `synthetic-round2-001cfc579ce2`，目录分别为`/root/autodl-tmp/chengkong-models/round2/`与`/root/autodl-tmp/chengkong-data/round2/`。代码和小清单进入Git，权重和批量数据留在数据盘。
+从新的静态演示库开始，三套流程使用不同分支，避免相互覆盖。浏览器自动验收脚本也实际执行这些流程。
+
+1. **材料延期与维护**：切换“按期确认结束”，先记下/预览原候选。打开“导入与字段核对”，载入合成延期模板，对`lifting_1 / 计划时段`点击“查询上方材料并提出字段更新”。核对来源、提取值和版本后，显式接受，计划时段更新为`[120,600]`，尚未确认结束。回到候选，尝试采纳旧候选应被拒绝；预览新候选，再显式采纳，计划与预约原子更新。
+2. **补证改变判断但保留设施**：切换“结束未确认”，推进至360秒；对`lifting_1 / 完成状态`查询已有证据，结果未知。导入模板JSON并将记录改成新ID、有效/获取时间均360，payload改成下面的完成记录。点击解析、核对、接受。任务2对象检查由冲突变为无冲突，塔吊物理设施仍在。完整任务是否可执行还需联合资源和候选复核。点击“导出当前结果”保存证据、版本、候选条件和未解决信息。
+3. **协同与在途变化**：切换“延期后确认结束”，推进至120秒，勾选“冻结已执行前缀”，可再勾选学习实验，点击重新计算。任务1从当前模拟位置维护，已执行前缀不变。候选中比较任务变更、延误、增距、能耗；“学习与材料”可运行同一版本的规则/学习实际对照。历史回放保持只读，返回实时状态后当前计划不变。
+
+第二套材料的payload：
+
+```json
+{"object_id":"lifting_1","field":"completion","value":{"status":"confirmed","confirmed_at_s":360}}
+```
+
+新证据不会自动覆盖计划。预算耗尽、未知、冲突来源、过期候选或无候选都有明确状态；不要反复重试制造有利证据。补证过程、尚未接受提议及调用预算目前保存在服务进程内；已接受事件/证据、计划、预约与历史保存在SQLite。需要保留尚未接受的审查过程时先导出，不将多实例/重启恢复声称为已完成。
+
+## 可复制的CLI与导入
 
 ```bash
-.venv/bin/python -m pip install -r requirements-learning.txt
-.venv/bin/python -m chengkong.training benchmark --config configs/training-small.json
-.venv/bin/python -m chengkong.training train --config configs/training-small.json
-.venv/bin/python -m chengkong.training evaluate --config configs/training-small.json
-.venv/bin/chengkong analyze --model-dir /root/autodl-tmp/chengkong-models/round2 \
-  --learned --output runs/learned-v2.json
+.venv/bin/chengkong analyze --input examples/motion_crane_synthetic.json \
+  --scenario end_unconfirmed --as-of 60 --output runs/round3/motion.json
+.venv/bin/chengkong analyze --scenario end_unconfirmed --as-of 120 --inflight \
+  --model-dir /root/autodl-tmp/chengkong-models/round3 --learned \
+  --output runs/round3/inflight-learned.json
+.venv/bin/chengkong demo --output runs/round3/event-demo
+.venv/bin/python scripts/demo_cooperation.py --case cooperation --output runs/round3/cooperation
+.venv/bin/python scripts/demo_cooperation.py --case inflight --output runs/round3/inflight
+
+.venv/bin/python -m chengkong.imports examples/imports/construction_delay.json \
+  --accept --output runs/round3/import-json-reproduction.json
+.venv/bin/python -m chengkong.imports examples/imports/construction_delay.csv \
+  --format csv --metadata examples/imports/metadata.json \
+  --accept --output runs/round3/import-csv-reproduction.json
+.venv/bin/python -m chengkong.imports examples/imports/surveyed_pad.geojson \
+  --format geojson --metadata examples/imports/geojson_metadata.json \
+  --accept --output runs/round3/import-geojson-reproduction.json
 ```
 
-已有模型可直接`evaluate`或加载，无需重训。`train`会重建配置指定目录的实验产物；新实验请复制配置并修改输出目录以保留本次结果。144个事件按48个完整模板分组，训练/验证/校准/测试隔离。每模型本次1组参数，训练器最多允许3组；单作业90秒超时，标签求解也有明确预算。下游模型本轮不用上游预测特征，无折内预测泄漏链。
+CLI导入使用独立临时world并输出JSON；Web接受操作才更新其SQLite会话。模板另含`examples/imports/park_tasks_resources.json`（建筑、起降点、任务、必达服务与等待资源）。已有任务不能通过导入替换。[导入说明](docs/IMPORTS.md)列出严格元数据、六字段白名单、冲突裁决及不支持状态。GeoJSON只支持明确测量点对应的Point，不猜测投影或高度基准。[来源说明](docs/DATA_SOURCES.md)区分合成材料和公开负例材料。
 
-测试集上GNN排序不如包围盒规则，学习排序首选可行率与规则同为54.02%，首次可行实际代价略差。校准将单变量经验覆盖由62.96%变成100%，代价是平均区间扩大到346.82秒；只有9个独立校准模板，不能解释为现实飞行安全概率。所有学习建议不能绕过强制复核。
+## 训练、评估和当前结论
 
-## 多模态与受控材料更新
+模型`synthetic-round3-a774ca1b9f04`位于`/root/autodl-tmp/chengkong-models/round3`；数据位于`/root/autodl-tmp/chengkong-data/round3`。160个独立布局/事件模板，各2个变体/快照；按模板隔离为80训练、24验证、32校准、24测试。最终测试48事件、752任务约束对、192完整候选组。它们不是320个独立模板或真实施工事件。
 
-仅从本项目`config/multimodal.local.json`读取显式服务配置；模板为`config/multimodal.example.json`。配置和专用环境变量`CHENGKONG_VLM_API_KEY`需要使用者自行提供，不自动扫描其他项目/用户目录，不自动加载`.env`。当前真实服务未配置。
+```bash
+# 复评已保存模型，不覆盖第一次最终测试；生成新的reproduction结果。
+.venv/bin/python -m chengkong.training_round3 evaluate --config configs/training-round3.json
+# 事后更强规则与去边诊断，不用于重新选型：
+.venv/bin/python -m chengkong.diagnostics_round3 --config configs/training-round3.json
+```
 
-适配器向配置端点POST规范化`records/context/response_schema`，期待`chengkong-extraction-v1`结构化响应，包含候选事件与可定位证据引用。文本引文必须存在于可见材料；图像米制几何须有尺度、坐标原点、轴及高度基准。模型自报置信度不当作校准结果。无结果、超时、引用不成立或缺尺度时保留未知。具体协议和API见[数据契约](docs/DATA_CONTRACTS.md)。
+新训练应使用独立目录。以下保留现有产物并可复制运行；同一配置不能无限重复训练或重新利用已观察的test调参。
 
-## 验证与工程位置
+```bash
+.venv/bin/python - <<'PY'
+import json
+from pathlib import Path
+c=json.loads(Path('configs/training-round3.json').read_text())
+c['data_dir']='/root/autodl-tmp/chengkong-data/round3-reproduction'
+c['model_dir']='/root/autodl-tmp/chengkong-models/round3-reproduction'
+Path('runs/round3-reproduction-config.json').write_text(json.dumps(c,indent=2))
+PY
+.venv/bin/python -m chengkong.training_round3 benchmark --config runs/round3-reproduction-config.json
+.venv/bin/python -m chengkong.training_round3 generate --config runs/round3-reproduction-config.json
+.venv/bin/python -m chengkong.training_round3 train --config runs/round3-reproduction-config.json
+.venv/bin/python -m chengkong.training_round3 evaluate --config runs/round3-reproduction-config.json
+```
+
+敏感性MSE降低且半数检查预算内覆盖更多关键pair，但更慢、完整检查相关任务的比例更低。GNN有小幅排序改善，联合修复未增加完成任务。排序相对原固定规则有提升，但事后简单`keep→detour`规则达到同样92/192成功，不能宣称可靠学习优势。32个独立校准组的区间覆盖提高但平均宽度185.76秒；不是整条任务安全概率。详见[完整指标、分母和失败分析](docs/LEARNING_ROUND3.md)。
+
+## 验证
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python -m compileall -q src tests scripts
 .venv/bin/python -m pip check
-# 可选浏览器验收；此服务器的字体/本地库环境参数见VALIDATION。
-.venv/bin/python scripts/browser_smoke.py
+# 本服务器已经准备本地Chromium及字体库：
+PLAYWRIGHT_BROWSERS_PATH=/root/autodl-tmp/chengkong-data/browser \
+LD_LIBRARY_PATH=/root/autodl-tmp/chengkong-data/browser-libs/extracted/usr/lib/x86_64-linux-gnu \
+FONTCONFIG_FILE=/root/autodl-tmp/chengkong-data/browser-libs/fonts.conf \
+.venv/bin/python scripts/browser_round3.py --output runs/round3/browser-reproduction
 ```
 
-浏览器验收脚本启动自己的随机loopback端口和临时数据库，退出时关闭；可选依赖`requirements-dev.txt`。它记录请求、结果与截图，使用真实后端而非固定响应。
+浏览器脚本使用真实后端、随机本地端口、临时SQLite，结束时关闭；需要`requirements-dev.txt`。它验证三套流程、20次API请求、空间/冲突视图、导出、只读回放及移动布局，不用固定响应代替计算。验证日志和截图见[VALIDATION](docs/VALIDATION.md)。
 
-- 第一层：`contracts.py / world.py / evidence.py / multimodal.py`，有效/到达时间、事件重放、参数化占用、来源与受控写回。
-- 第二层：`geometry.py / analysis.py / verification.py / incremental.py / reference_geometry.py`，连续冲突、全量复核、保守增量依赖及独立数值参考。
-- 第三层：`planning.py / cooperation.py / resources.py / execution.py`，有限图SIPP、预算化重排回溯、动态修复集合、同机资源、在途仿真。
-- 公共与学习：`pipeline.py / storage.py / cli.py / web.py / static/`；`synthetic.py / training.py / model_runtime.py / learning.py`。
+## 工程边界
 
-关键输出是`chengkong-result-v2`：世界和约束版本、逐任务与联合资源分析、完整原计划复核、候选与条件、真实变更代价、预算/失败诊断、两类补证请求、模型状态及增量依赖。只有全部硬检查通过才标记`conditionally_feasible`；搜索失败、信息不足、预算耗尽和超时分别记录。
+- 第一层：`world/contracts/motion/imports/field_evidence/multimodal`，记录来源、未知、事件和时变占用。真实服务只读取项目`config/multimodal.local.json`及专用环境变量，参见`config/multimodal.example.json`，未配置则明确未接入；无尺度图像不产生可靠米制参数。
+- 第二层：`analysis/geometry/verification/reference_geometry/incremental`，连续航段、同时间动态几何、预算化检查顺序及独立数值参考。动态误差膨胀和容差见[MOTION](docs/MOTION.md)。仍可能保守误报，未知/超限不能放行。
+- 第三层：`planning/cooperation/resources/execution/storage`，有限SIPP与重排回溯、修复集合扩展、共享资源、同机衔接、冻结前缀、事务采纳。SIPP尚使用吊装完整范围，可能错过时变间隙；不声称全局最优或完备。
 
-## 适用边界与依据
+只支持AABB、竖直圆柱、胶囊及分段线性航迹。吊物摆动、小车变幅、臂架俯仰、精细网格、真实遥测/飞控、地面运输路径和车辆容量未实现。周转、能耗采用显式简化模型。真实施工演化训练、真实现场泛化、任意字段补证/坐标转换、服务多实例恢复仍待后续。全部研究路线保留，不把合成实验当作现实部署效果。
 
-几何支持AABB、竖直圆柱与胶囊体，轨迹分段线性；运动占用由有效时间分段固定包络表示。航路仍为固定巡航高度、垂直起降和显式线性能耗，不是完整三维动力学。有限重排与SIPP无全局完备/最优保证。相同飞行器周转使用显式配置的地面运输、充电速率和周转时间；地面载运路径避障及载运车辆容量未建模，必须在条件中保留这一假设。周转驻留接受完整复核，但搜索器未提前纳入所有跨任务驻留，因此可能错过可行方案；等待区只复核显式轨迹，未自动生成地面搬运路线。空中等待需校验空间与能耗，地面等待需合法位置和容量。
-
-主规划和主复核不复用搜索器，但共享几何底层函数；独立凸距离参考及手算边界用于额外交叉检查，不是形式化安全证明。真实施工历史预测、精细吊臂运动、真实多模态服务、真实标注/校准数据和现实部署评估仍待完成。
-
-先读[AGENTS](AGENTS.md)、[项目说明](docs/PROJECT_BRIEF.md)、[技术路线](docs/TECHNICAL_ROUTE.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md)。`docs/source/`尚无标注最终版的3.2，不能声称已核对不存在的原稿。持续恢复位置见[PROGRESS](docs/PROGRESS.md)。
+技术依据仍为[工程整理路线](docs/TECHNICAL_ROUTE.md)；`docs/source/`无最终3.2原稿。恢复开发前读[AGENTS](AGENTS.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md)、[PROGRESS](docs/PROGRESS.md)及当前Git状态。下一步需要有许可、时空对齐和测量尺度的现场材料、任务/资源参数、真实历史序列及明确项目服务配置。
