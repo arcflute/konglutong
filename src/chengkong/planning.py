@@ -10,6 +10,7 @@ import copy
 import heapq
 import itertools
 import math
+import time
 
 from .geometry import segment_occupancy, UnsupportedGeometry
 from .analysis import check_task
@@ -66,13 +67,15 @@ def _pad_intervals(task):
     return result
 
 
-def _pad_collision(task,p,q,start,end,reservations):
+def _pad_collision(task,p,q,start,end,reservations,world):
     pad=None
     if p[2]==0: pad=task['launch_pad_id']
     if q[2]==0: pad=task['landing_pad_id']
     if pad is None: return False
-    return any(other_pad==pad and start<hi and lo<end
-               for other in reservations for other_pad,lo,hi in _pad_intervals(other))
+    capacity=next((r['capacity'] for r in world['pads'] if r['id']==pad),1)
+    rows=[(lo,hi) for other in reservations for other_pad,lo,hi in _pad_intervals(other) if other_pad==pad and start<hi and lo<end]
+    times=sorted({start,end,*[max(start,lo) for lo,hi in rows],*[min(end,hi) for lo,hi in rows]})
+    return any(sum(lo<=at<hi for lo,hi in rows)>=capacity for at in times[:-1])
 
 
 def _geometry_bounds(g):
@@ -89,11 +92,11 @@ def _geometry_bounds(g):
 def build_route_graph(task,world,constraints,allow_detour=True):
     """Single cruise altitude, vertical pad edges, explicit service waypoints."""
     services=task['mandatory_services']
-    altitudes={p['position_m'][2] for p in task['trajectory'] if p['position_m'][2]>0}
+    altitudes={task['_cruise_altitude_m']} if '_cruise_altitude_m' in task else {p['position_m'][2] for p in task['trajectory'] if p['position_m'][2]>0}
     if len(altitudes)!=1 or any(s['position_m'][2] not in altitudes for s in services):
         return {'status':'unsupported_route_profile'}
     z=next(iter(altitudes)); pads={p['id']:p for p in world['pads']}
-    start=tuple(pads[task['launch_pad_id']]['position_m']);goal=tuple(pads[task['landing_pad_id']]['position_m'])
+    start=tuple(task.get('_search_start_position_m',pads[task['launch_pad_id']]['position_m']));goal=tuple(pads[task['landing_pad_id']]['position_m'])
     nodes=[start,goal,(*start[:2],z),(*goal[:2],z)]
     nodes += [tuple(s['position_m']) for s in services]
     nodes += [tuple(p['position_m']) for p in task['trajectory'] if p['position_m'][2]>0]
@@ -153,16 +156,16 @@ def _safe_intervals(p,task,world,constraints,reservations):
     return result
 
 
-def search_task(task,world,constraints,reservations=(),allow_detour=True,max_expansions=10000,start_after_s=None):
+def search_task(task,world,constraints,reservations=(),allow_detour=True,max_expansions=10000,start_after_s=None,timeout_s=None):
     try:
         for constraint in constraints:
             _geometry_bounds(constraint['geometry'])
-        return _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s)
+        return _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s, None if timeout_s is None else time.monotonic()+max(0.,timeout_s))
     except (UnsupportedGeometry,TypeError,KeyError,ValueError) as exc:
         return {'status':'unsupported_or_incomplete_search_input','reason':str(exc)}
 
 
-def _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s):
+def _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s,deadline):
     graph=build_route_graph(task,world,constraints,allow_detour)
     if graph['status']!='ready':return {'status':graph['status']}
     nodes=graph['nodes'];safe=[_safe_intervals(p,task,world,constraints,reservations) for p in nodes]
@@ -179,9 +182,11 @@ def _search_task(task,world,constraints,reservations,allow_detour,max_expansions
     if search_start>start_time:
         initial_path.append({'time_s':search_start,'position_m':list(nodes[graph['start']])})
     initial_used=(search_start-start_time)*energy['ground_wait_cost_per_s']
+    if search_start>start_time and nodes[graph['start']][2]==0 and not next((p.get('ground_wait_allowed',False) for p in world['pads'] if p['id']==task['launch_pad_id']),False):return {'status':'ground_wait_location_unavailable'}
     if initial_used>capacity:return {'status':'ground_wait_energy_exceeded'}
     heapq.heappush(queue,(search_start,next(counter),graph['start'],si,0,initial_used,initial_path))
     while queue:
+        if deadline is not None and time.monotonic()>=deadline:return {'status':'search_timeout','expansions':expansions}
         at,_,node,interval,progress,used,path=heapq.heappop(queue)
         expansions+=1
         if expansions>max_expansions:return {'status':'search_budget_exhausted','expansions':expansions}
@@ -216,16 +221,18 @@ def _search_task(task,world,constraints,reservations,allow_detour,max_expansions
             for target_interval,(lo,hi) in enumerate(safe[target]):
                 depart=max(at,lo-duration);tries=0
                 while depart+duration<min(hi,end_limit+EPS) and depart<safe_end:
+                    if deadline is not None and time.monotonic()>=deadline:return {'status':'search_timeout','expansions':expansions}
                     jump=next((b for a,b in forbidden if a<=depart<b),None)
                     if jump is not None:depart=jump;continue
                     # Private trajectory reservations: bounded 1s retry after a continuous collision.
-                    if _reservation_collision(p,q,depart,depart+duration,task['protection_radius_m'],reservations) or _pad_collision(task,p,q,depart,depart+duration,reservations):
+                    if _reservation_collision(p,q,depart,depart+duration,task['protection_radius_m'],reservations) or _pad_collision(task,p,q,depart,depart+duration,reservations,world):
                         depart+=1.0;tries+=1
                         if tries>1000:break
                         continue
                     break
                 arrival=depart+duration
                 if depart>=safe_end or arrival>=hi or arrival>end_limit or tries>1000:continue
+                if depart>at+EPS and p[2]==0 and not next((pad.get('ground_wait_allowed',False) for pad in world['pads'] if list(p)==pad['position_m']),False):continue
                 wait_cost=energy['ground_wait_cost_per_s'] if p[2]==0 else energy['airborne_cost_per_s']
                 next_used=used+(depart-at)*wait_cost+duration*energy['airborne_cost_per_s']
                 if next_used>capacity+EPS:continue
@@ -252,44 +259,7 @@ def _ground_departures(task,constraints):
     return sorted(options)[:32]
 
 
-def generate_candidates(world,constraints,diagnostics=None):
-    """Returns checked later, complete joint-plan proposals, never changes world."""
-    baseline={t['id']:check_task(t,constraints,world) for t in world['tasks']}
-    affected=[t for t in world['tasks'] if baseline[t['id']]['status']!='clear']
-    if diagnostics is None:diagnostics=[]
-    if any(t['departure_time_s']<world['as_of_s'] for t in affected):
-        diagnostics.append({'status':'needs_operational_review_started_task'})
-        return []
-    if any(not baseline[t['id']]['checks_completed'] for t in world['tasks']):
-        diagnostics.append({'status':'incomplete_constraint_checks'})
-        return []
-    try:
-        for constraint in constraints:
-            _geometry_bounds(constraint['geometry'])
-    except (UnsupportedGeometry,TypeError,KeyError,ValueError) as exc:
-        diagnostics.append({'status':'unsupported_or_incomplete_search_input','reason':str(exc)})
-        return []
-    modes=['retain'] if not affected else ['delay','detour']
-    candidates=[]
-    for mode in modes:
-        locked=[copy.deepcopy(t) for t in world['tasks'] if t not in affected];searches=[]
-        for task in sorted(affected,key=lambda t:(t['priority'],t['id'])):
-            options=_ground_departures(task,constraints) if mode=='delay' else [task['departure_time_s']]
-            attempts=[search_task(task,world,constraints,locked,allow_detour=mode=='detour',start_after_s=departure) for departure in options]
-            found=[r for r in attempts if r['status']=='found']
-            # Prefer lower airborne energy, then earlier completion: safe ground waits
-            # are preferable to hovering in the declared zero-cost standby model.
-            result=min(found,key=lambda r:(r['task']['planning_energy_used'],r['task']['trajectory'][-1]['time_s'])) if found else attempts[0]
-            diagnostics.append({'mode':mode,'task_id':task['id'],'attempts':[{k:v for k,v in r.items() if k!='task'} for r in attempts]})
-            searches.append({k:v for k,v in result.items() if k!='task'}|{'task_id':task['id']})
-            if result['status']!='found':break
-            locked.append(result['task'])
-        if len(locked)!=len(world['tasks']):continue
-        tasks=sorted(locked,key=lambda t:t['id']);changes=[]
-        for old in world['tasks']:
-            new=next(t for t in tasks if t['id']==old['id'])
-            old_len=sum(_distance(a['position_m'],b['position_m']) for a,b in zip(old['trajectory'],old['trajectory'][1:]))
-            new_len=sum(_distance(a['position_m'],b['position_m']) for a,b in zip(new['trajectory'],new['trajectory'][1:]))
-            changes.append({'task_id':old['id'],'changed':old['trajectory']!=new['trajectory'],'departure_shift_s':new.get('actual_departure_time_s',new['departure_time_s'])-old['departure_time_s'],'arrival_shift_s':new['trajectory'][-1]['time_s']-old['trajectory'][-1]['time_s'],'distance_delta_m':new_len-old_len})
-        candidates.append({'id':f"candidate-{world['scenario_id']}-{world['environment_version']}-{mode}",'kind':mode,'tasks':tasks,'base_environment_version':world['environment_version'],'base_plan_versions':{t['id']:t['plan_version'] for t in world['tasks']},'rule_version':world['rule_version'],'model_version':world['model_version'],'scenario_id':world['scenario_id'],'valid_interval_s':list(world['horizon_s']),'changes':changes,'searches':searches,'status':'pending_review','conditions':['synthetic local frame and fixed speed only','linear synthetic energy; no real aircraft validation','ground standby begins at original departure; earlier preparation is outside modeled scope','unconfirmed activity remains possible throughout horizon; no automatic release beyond horizon'],'ranking_source':'deterministic_rule_v1','constraints_used':[c['id'] for c in constraints]})
-    return candidates
+def generate_candidates(world,constraints,diagnostics=None,budget=None,execution_context=None,planning_hints=None,ranking_hook=None):
+    """Bounded cooperative search; all proposals still require independent review."""
+    from .cooperation import cooperative_candidates
+    return cooperative_candidates(world,constraints,diagnostics,budget,execution_context,planning_hints,ranking_hook)

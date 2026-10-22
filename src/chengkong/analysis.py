@@ -2,6 +2,8 @@
 
 from math import isfinite
 
+from .resources import aircraft_continuity, waiting_reservations, capacity_conflicts
+
 from .geometry import (EPS, UnsupportedGeometry, distance, geometry_bounds,
                        geometry_method, interpolate, segment_occupancy, vector)
 
@@ -55,7 +57,7 @@ def _intersection_time(spatial_start, spatial_end, segment_start, segment_end, a
     return None
 
 
-def check_task(task, constraints, world):
+def check_task(task, constraints, world, from_time_s=None):
     report = {"task_id":task.get("id"),"plan_version":task.get("plan_version"),
               "conflicts":[],"unchecked":[],"associations":[],
               "screened_out_pairs":0,"continuous_pairs_checked":0,
@@ -76,6 +78,10 @@ def check_task(task, constraints, world):
     except (KeyError,TypeError,ValueError) as exc:
         report["unchecked"].append({"reason":"invalid_task_geometry_or_time","detail":str(exc)})
         return _finish(report)
+    if from_time_s is not None:
+        segments=[(i,max(t0,from_time_s),t1,interpolate(p0,p1,(max(t0,from_time_s)-t0)/(t1-t0)),p1)
+                  for i,t0,t1,p0,p1 in segments if t1>from_time_s]
+        report['future_check_from_s']=from_time_s
     for constraint in constraints:
         cid = constraint.get("id")
         try:
@@ -175,7 +181,7 @@ def pad_reservations(tasks, world):
     return reservations,unchecked
 
 
-def check_joint_tasks(tasks, world):
+def check_joint_tasks(tasks, world, from_time_s=None):
     report = {"conflicts":[],"unchecked":[],"pair_segments_checked":0,
               "scope":"continuous aircraft separation, fixed aircraft assignment, pad capacities",
               "pad_occupancy_convention":"ground waits and entire takeoff/landing segments; no implicit preparation",
@@ -184,6 +190,9 @@ def check_joint_tasks(tasks, world):
     for task in tasks:
         try:
             trajectories[task["id"]] = trajectory_segments(task)
+            if from_time_s is not None:
+                trajectories[task['id']]=[(i,max(t0,from_time_s),t1,interpolate(p0,p1,(max(t0,from_time_s)-t0)/(t1-t0)),p1)
+                    for i,t0,t1,p0,p1 in trajectories[task['id']] if t1>from_time_s]
             radius = _finite(task["protection_radius_m"])
             if radius < 0:
                 raise ValueError("negative protection radius")
@@ -195,15 +204,6 @@ def check_joint_tasks(tasks, world):
             if left.get("id") not in trajectories or right.get("id") not in trajectories:
                 continue
             ls,rs = trajectories[left["id"]],trajectories[right["id"]]
-            if left.get("aircraft_id") == right.get("aircraft_id"):
-                start,end = max(ls[0][1],rs[0][1]),min(ls[-1][2],rs[-1][2])
-                if start < end:
-                    report["conflicts"].append({"kind":"aircraft_double_booking","task_ids":[left["id"],right["id"]],
-                                                "aircraft_id":left.get("aircraft_id"),"interval_s":[start,end]})
-                else:
-                    report["unchecked"].append({"kind":"aircraft_turnaround_unmodeled",
-                        "task_ids":[left["id"],right["id"]],"aircraft_id":left.get("aircraft_id"),
-                        "reason":"Sequential reuse requires repositioning and battery turnaround evidence; no implicit reset."})
             radius = float(left["protection_radius_m"])+float(right["protection_radius_m"])
             for li,l0,l1,lp0,lp1 in ls:
                 for ri,r0,r1,rp0,rp1 in rs:
@@ -223,23 +223,31 @@ def check_joint_tasks(tasks, world):
                         report["conflicts"].append({"kind":"aircraft_separation",
                             "task_ids":[left["id"],right["id"]],"segment_indices":[li,ri],
                             "interval_s":[start+lo*(end-start),start+hi*(end-start)],
-                            "required_separation_m":radius,"method":"continuous_exact_relative_motion_spheres"})
+                            "required_separation_m":radius,"encounter_type":_encounter_type(lp0,lp1,rp0,rp1),"method":"continuous_exact_relative_motion_spheres"})
     reservations,unchecked = pad_reservations(tasks,world)
     report["unchecked"].extend(unchecked)
+    reuse = aircraft_continuity(tasks,world)
+    report["aircraft_transitions"] = reuse["transitions"]
+    report["conflicts"].extend(reuse["conflicts"])
+    report["unchecked"].extend(reuse["unchecked"])
+    reservations.extend(reuse["reservations"])
+    waits,unchecked = waiting_reservations(tasks,world)
+    reservations.extend(waits);report["unchecked"].extend(unchecked)
     report["reservations"] = reservations
-    for pad in world.get("pads",[]):
-        rows = [row for row in reservations if row["resource_id"] == pad["id"]]
-        try:
-            capacity = int(pad["capacity"])
-            if capacity < 1 or capacity != pad["capacity"]:
-                raise ValueError("pad capacity must be a positive integer")
-        except (KeyError,TypeError,ValueError) as exc:
-            report["unchecked"].append({"resource_id":pad["id"],"reason":"unknown_pad_capacity","detail":str(exc)})
-            continue
-        times = sorted({v for row in rows for v in row["interval_s"]})
-        for start,end in zip(times,times[1:]):
-            active = sorted({row["task_id"] for row in rows if row["interval_s"][0] <= start < row["interval_s"][1]})
-            if len(active) > capacity:
-                report["conflicts"].append({"kind":"pad_capacity","resource_id":pad["id"],
-                    "interval_s":[start,end],"task_ids":active,"capacity":capacity})
+    resources = world.get("pads",[]) + [dict(a,resource_kind="waiting_area") for a in world.get("waiting_areas",[])]
+    conflicts,unchecked = capacity_conflicts(reservations,resources)
+    report["conflicts"].extend(conflicts);report["unchecked"].extend(unchecked)
+    if from_time_s is not None:
+        end_by_id={t['id']:t['trajectory'][-1]['time_s'] for t in tasks}
+        report['conflicts']=[c for c in report['conflicts'] if 'interval_s' in c and
+            (c['interval_s'][1]>from_time_s or c['interval_s'][0]==c['interval_s'][1]>=from_time_s)] + [c for c in report['conflicts'] if 'interval_s' not in c and any(end_by_id.get(t,0)>from_time_s for t in c.get('task_ids',[]))]
+        report['future_check_from_s']=from_time_s
     return _finish(report)
+
+
+def _encounter_type(p0,p1,q0,q1):
+    p=[b-a for a,b in zip(p0,p1)];q=[b-a for a,b in zip(q0,q1)]
+    norm=(sum(x*x for x in p)*sum(x*x for x in q))**.5
+    if norm<1e-12:return "stationary_or_waiting"
+    cosine=sum(x*y for x,y in zip(p,q))/norm
+    return "head_on" if cosine<-.9 else "same_direction" if cosine>.9 else "crossing"

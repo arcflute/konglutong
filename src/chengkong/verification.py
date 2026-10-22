@@ -8,6 +8,8 @@ from math import hypot, isfinite
 
 from .analysis import check_joint_tasks, check_task, trajectory_segments
 from .geometry import EPS, distance
+from .reference_geometry import check_reference_task
+from .execution import validate_context, frozen_prefix
 
 IMMUTABLE_TASK_FIELDS = (
     "aircraft_id", "priority", "plan_version", "deadline_s", "launch_pad_id",
@@ -16,7 +18,7 @@ IMMUTABLE_TASK_FIELDS = (
 )
 
 
-def _task_requirements(task, original, world):
+def _task_requirements(task, original, world, execution_context=None):
     violations,unchecked = [],[]
     tid = task.get("id")
     def reject(reason, **detail):
@@ -24,10 +26,16 @@ def _task_requirements(task, original, world):
     for field in IMMUTABLE_TASK_FIELDS:
         if task.get(field) != original.get(field):
             reject("mission_requirement_modified",field=field)
-    if original["departure_time_s"] < world["as_of_s"] and any(
+    if execution_context is None and original["departure_time_s"] < world["as_of_s"] and any(
             task.get(field) != original.get(field)
             for field in ("trajectory","departure_time_s","ground_wait_interval_s")):
         reject("cannot_rewrite_already_started_task")
+    if execution_context is not None:
+        state=execution_context['tasks'][tid]
+        if frozen_prefix(task,execution_context['at_s']) != state['frozen_prefix']:
+            reject('executed_prefix_modified')
+        if state['status']=='completed' and task.get('trajectory')!=original.get('trajectory'):
+            reject('completed_task_rewritten')
     metrics = {"task_id":tid}
     try:
         segments = trajectory_segments(task)
@@ -88,11 +96,22 @@ def _task_requirements(task, original, world):
         if "actual_departure_time_s" in task and abs(float(task["actual_departure_time_s"])-actual_departure) > EPS:
             reject("actual_departure_does_not_match_trajectory")
         declared_wait = task.get("ground_wait_interval_s")
+        ground_entry=task.get('ground_entry')
+        admitted_late=False
+        if ground_entry is not None:
+            from .resources import prepare_continuation
+            predecessor=next((t for t in world.get('_candidate_tasks',[]) if t.get('id')==ground_entry.get('predecessor_task_id')),None)
+            if predecessor is None or predecessor['aircraft_id']!=task['aircraft_id']:
+                reject('invalid_aircraft_ground_entry')
+            else:
+                expected=prepare_continuation(original,predecessor,world)
+                admitted_late=ground_entry==expected.get('ground_entry') and abs(start-expected['departure_time_s'])<=EPS
+                if not admitted_late:reject('invalid_aircraft_ground_entry')
         if actual_departure > float(original["departure_time_s"])+EPS:
-            expected_wait = [float(original["departure_time_s"]),actual_departure]
-            if declared_wait is None or len(declared_wait) != 2 or any(abs(float(a)-b) > EPS for a,b in zip(declared_wait,expected_wait)):
+            expected_wait = [start if admitted_late else float(original["departure_time_s"]),actual_departure]
+            if expected_wait[1]>expected_wait[0]+EPS and (declared_wait is None or len(declared_wait) != 2 or any(abs(float(a)-b) > EPS for a,b in zip(declared_wait,expected_wait))):
                 reject("delayed_departure_requires_explicit_ground_wait",expected_interval_s=expected_wait)
-            if start > float(original["departure_time_s"])+EPS:
+            if start > float(original["departure_time_s"])+EPS and not admitted_late:
                 reject("ground_wait_not_in_checked_trajectory")
         elif declared_wait is not None and declared_wait[1]-declared_wait[0] > EPS:
             reject("declared_ground_wait_does_not_match_trajectory")
@@ -153,10 +172,25 @@ def verify_candidate(candidate, world, constraints):
                   "No pad preparation phase before declared task/ground-wait time is modeled.",
                   "Unconfirmed activity remains possible throughout the declared conservative horizon.",
                   "Candidate is an advisory result; current plans are unchanged."]}
+    context = candidate.get('execution_context')
+    if context is not None and not validate_context(context,world):
+        report['unchecked'].append({'reason':'invalid_or_stale_execution_context'})
+        return report
+    report['execution_mode']='software_simulation_frozen_prefix' if context else 'predeparture_or_unchanged_history'
+    report['historical_conflicts']=[]
+    report['reference_reports']=[]
+    report['geometry_independence']={'primary':'analysis shares analytic occupancy primitives with SIPP',
+        'additional_reference':'separate convex-distance minimization over every time-overlapping segment; no planner geometry imports',
+        'limitation':'floating-point numerical reference, not formal exact-arithmetic proof'}
     expected = {"base_environment_version":world.get("environment_version"),
                 "base_plan_versions":{task["id"]:task["plan_version"] for task in world["tasks"]},
                 "rule_version":world.get("rule_version"),"model_version":world.get("model_version"),
                 "scenario_id":world.get("scenario_id")}
+    if 'reservation_version' in world or candidate.get('candidate_schema_version',1)>=2 or 'base_reservation_version' in candidate:
+        expected['base_reservation_version']=world.get('reservation_version',1)
+        report['reservation_version_policy']='strict'
+    else:
+        report['reservation_version_policy']='legacy_v1_fixture_without_reservation_state'
     mismatches = [key for key,value in expected.items() if key not in candidate or candidate[key] != value]
     if mismatches:
         report.update(status="needs_recheck",version_mismatches=mismatches)
@@ -196,7 +230,7 @@ def verify_candidate(candidate, world, constraints):
     for task in tasks:
         if task.get("id") not in originals:
             continue
-        violations,unchecked,metrics = _task_requirements(task,originals[task["id"]],world)
+        violations,unchecked,metrics = _task_requirements(task,originals[task["id"]],dict(world,_candidate_tasks=tasks),context)
         report["violations"].extend(violations)
         report["unchecked"].extend(unchecked)
         report["task_metrics"].append(metrics)
@@ -207,11 +241,31 @@ def verify_candidate(candidate, world, constraints):
         except (KeyError,TypeError,ValueError):
             pass  # Already recorded by requirement checks and task analysis.
         checked = check_task(task,constraints,world)
+        if context is not None:
+            historical=[c for c in checked['conflicts'] if c['interval_s'][1]<=context['at_s'] and c['interval_s'][0]<context['at_s']]
+            report['historical_conflicts'].extend(historical)
+            checked['historical_conflicts']=historical
+            future=check_task(task,constraints,world,context['at_s'])
+            checked['conflicts']=future['conflicts']
+            checked['unchecked']=future['unchecked']
+            checked['status']='conflict' if checked['conflicts'] else 'not_checked' if checked['unchecked'] else 'clear'
+        reference=check_reference_task(task,constraints,context['at_s'] if context else None)
+        report['reference_reports'].append(reference)
+        report['unchecked'].extend(reference['unchecked'])
+        if reference['conflicts']:
+            report['violations'].append({'task_id':task['id'],'reason':'independent_reference_object_conflicts','count':len(reference['conflicts'])})
         report["task_reports"].append(checked)
         report["unchecked"].extend(checked["unchecked"])
         if checked["conflicts"]:
             report["violations"].append({"task_id":task["id"],"reason":"object_conflicts","count":len(checked["conflicts"])})
     joint = check_joint_tasks(tasks,world)
+    if context is not None:
+        historical=[c for c in joint['conflicts'] if 'interval_s' in c and c['interval_s'][1]<=context['at_s'] and c['interval_s'][0]<context['at_s']]
+        report['historical_conflicts'].extend(historical);joint['historical_conflicts']=historical
+        future_joint=check_joint_tasks(tasks,world,context['at_s'])
+        joint['conflicts']=future_joint['conflicts']
+        joint['unchecked']=future_joint['unchecked']
+        joint['status']='conflict' if joint['conflicts'] else 'not_checked' if joint['unchecked'] else 'clear'
     report["joint_report"] = joint
     report["unchecked"].extend(joint["unchecked"])
     if joint["conflicts"]:
