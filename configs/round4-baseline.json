@@ -1,0 +1,955 @@
+{
+  "start_commit": "3bcf1bd70d2db37916caaafae88d0f42ee7039f4",
+  "initial_status": "clean before delegation",
+  "recorded_unix_s": 1792692508.959156,
+  "old_artifacts": [
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/benchmark.json",
+      "bytes": 1233,
+      "sha256": "8c7851c417ce4f0f23e28c239fc57ea049657d04fce10ce10d464a448646b532"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/data_manifest.json",
+      "bytes": 4948,
+      "sha256": "9402b2654a5d7ad292225eed9011849b089451e2bcb7d52e578a9c6238b6cf97"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/dataset.json",
+      "bytes": 2569670,
+      "sha256": "001cfc579ce2e0992feaf4db2d6da8fa8c5b669053ba1c2877437837878cf729"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/simulator_truth.jsonl",
+      "bytes": 47711,
+      "sha256": "c43bb9de0be98c0bc5942ebf9a247bda2446eff5ddc1e73c9f44050b6470a3fe"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round2/visible_scenarios.jsonl",
+      "bytes": 846357,
+      "sha256": "627fa9958d006a799f861e667b8a0193e3e06b4829f99344656330b840cbd363"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/INVALIDATED_BEFORE_FINAL_TEST.json",
+      "bytes": 342,
+      "sha256": "0c4bae13d77a98ef13b93d4a975f0f16b62275f21c53cfd622c9313064d12462"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/data/benchmark.json",
+      "bytes": 1233,
+      "sha256": "8c7851c417ce4f0f23e28c239fc57ea049657d04fce10ce10d464a448646b532"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/data/data_manifest.json",
+      "bytes": 4948,
+      "sha256": "9402b2654a5d7ad292225eed9011849b089451e2bcb7d52e578a9c6238b6cf97"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/data/dataset.json",
+      "bytes": 2569670,
+      "sha256": "001cfc579ce2e0992feaf4db2d6da8fa8c5b669053ba1c2877437837878cf729"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/data/simulator_truth.jsonl",
+      "bytes": 47711,
+      "sha256": "c43bb9de0be98c0bc5942ebf9a247bda2446eff5ddc1e73c9f44050b6470a3fe"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/data/visible_scenarios.jsonl",
+      "bytes": 846357,
+      "sha256": "627fa9958d006a799f861e667b8a0193e3e06b4829f99344656330b840cbd363"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/calibration.json",
+      "bytes": 830,
+      "sha256": "11b6bbaaff19ba66a32e8704e6410fa05492870a549839ae946a60de4f25d5b9"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/evaluate-output.json",
+      "bytes": 4297,
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/evaluation.json",
+      "bytes": 4297,
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/fit-config.json",
+      "bytes": 695,
+      "sha256": "9a2769610e18c7ac39cfedbe6a217f91a3a50aa9f292f80ce7f726a175c5a778"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/gnn-training.json",
+      "bytes": 4573,
+      "sha256": "269e51413427b655583c178c276c6d04a69b094acab9bb797fbfa46d7840a689"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/gnn.npz",
+      "bytes": 2880,
+      "sha256": "9ab10a995cad72bb8d22c9e976c5b8c6fc5d1291899570410a6e70bc20a5268b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/manifest.json",
+      "bytes": 7712,
+      "sha256": "9a148ecb15bef2335969d18b11cb4a206ab31b90baf0527a9aecb4599828b61f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/quantile_lower.json",
+      "bytes": 47099,
+      "sha256": "e6afff2813b69d380309ae252db337c2ac8c9a9d71663626c9b9998b20d07538"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/quantile_upper.json",
+      "bytes": 54477,
+      "sha256": "9e9c20d2635039c4958a5d901b8d6f8d234a3172d4a28eb819cc758b0230f045"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/ranker.json",
+      "bytes": 67812,
+      "sha256": "29abab0e068f0961f1df0fca87c723d42cc6b2049810816a0763f2d5200ab46f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/sensitivity.json",
+      "bytes": 65402,
+      "sha256": "970d488f5dd98c62355ec40489139bc25e396ff62f3d0a22a55d72ed113edd5f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/models/train-output.json",
+      "bytes": 4297,
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/.env.example",
+      "bytes": 595,
+      "sha256": "038a5acaa39865f594d654fe6a4b9ff6a96958fdd8cf9fd6febbeeabba940035"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/.gitignore",
+      "bytes": 763,
+      "sha256": "5f19bc24831bc9c4b60397de88b1200294a0729ef680e93965f0763fb5240377"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/AGENTS.md",
+      "bytes": 3271,
+      "sha256": "16d7b5332e6f1805db3593e1e3e1d062c4ac402de8d420724128fe3fa5942fc2"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/README.md",
+      "bytes": 10082,
+      "sha256": "1514a86f286d481ef91edd01d3b24d0749de739333d138406e3f3d69d8c22766"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/config/multimodal.example.json",
+      "bytes": 291,
+      "sha256": "d5b1d40556b18fee6b5ba10b5b43e366705269a969a9fda5fc41241e64eac815"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/configs/learning-artifacts.json",
+      "bytes": 8805,
+      "sha256": "75b324ff2d9279cdf944d8b3871f22f55165d3b01a396872f380f5fd160926e6"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/configs/training-small.json",
+      "bytes": 659,
+      "sha256": "9667b2a0d8123f81168e17ef1b308a0dcae0979fd322921757e6f837dd3532d8"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/CODEX_FIRST_TASK.md",
+      "bytes": 4946,
+      "sha256": "527fa1817601fd2031d8a473eb37c0712217bcfba4662a5cbf4ee9fde8bb7690"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/DATA_CONTRACTS.md",
+      "bytes": 24950,
+      "sha256": "7024eecf1dafd63cc599e9a79e0509c6f2fc0ef1e4f52cf6e4a1793c1a2adfa3"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/ENVIRONMENT.md",
+      "bytes": 4514,
+      "sha256": "ec6c127363db988d9d6dbef8dfb3caf6089d48cf4db2d5ecb7a79563b5d05eaf"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/FEATURE_MATRIX.md",
+      "bytes": 13059,
+      "sha256": "0b9bb61d5244bf06847006a5165d3bf041ea6f5587b56f1fc09759fb781528d0"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/IMPLEMENTATION_PLAN.md",
+      "bytes": 15116,
+      "sha256": "f9dc731514726ac439bfe1e4477e3700ae587e2865146f142dcf9a29c442e69a"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/LEARNING.md",
+      "bytes": 10218,
+      "sha256": "6e7b0f4d1fdc3346edec117d834a051807eb9426cc19366ca11e92dcdc96427d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/PROGRESS.md",
+      "bytes": 4450,
+      "sha256": "e724824f14652bc850ff3dd2cf375241029188649be34c188799f4b6347cad0f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/PROJECT_BRIEF.md",
+      "bytes": 3376,
+      "sha256": "ece4784382326239b1d7bbcd5a0614d507d4617b340c0766751cda7b2881ac90"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/TECHNICAL_ROUTE.md",
+      "bytes": 14601,
+      "sha256": "8fcd79c30b73e6d63a1f0befe2b953f137c77664d21475b418eebfa61fb9924d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/UPLOAD_GUIDE.md",
+      "bytes": 2576,
+      "sha256": "55a7e935d3c96c18ec55887cd499b65455129656638ab029f1c4087e906b7d38"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/VALIDATION.md",
+      "bytes": 21329,
+      "sha256": "788368d86086f0cdbbde66c85a8ed25ceb4fa811240bb9a8dbab90eeb61e2634"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/docs/source/README.md",
+      "bytes": 605,
+      "sha256": "3647ce157af303c64b0363631e80921549bfe54ecc4bb44306310e1fdf4e346d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/examples/README.md",
+      "bytes": 3985,
+      "sha256": "ba8a59aa16fcdcfe9ad55da3baaa70f2bcc55a35c555c376a0cc052ce67a2008"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/examples/park_crane_synthetic.json",
+      "bytes": 12415,
+      "sha256": "e4715a91f060c17d7d5d7935a5348002d291dcfa421926251653f5ca77d18461"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/pyproject.toml",
+      "bytes": 467,
+      "sha256": "307baa6ef830d47880512fb843546a9004a71135dc28a26fc74f5cc158cd37fc"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/requirements-build.txt",
+      "bytes": 103,
+      "sha256": "542fd59162c058ac8618011e2f6f3b85ef4ca1de36c2996022b2d8315bfccf2a"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/requirements-dev.txt",
+      "bytes": 96,
+      "sha256": "27eb7063df89d2f2d1dec279bfe88f2225c2a0356213c6aeb7aa79ec3cf2e404"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/requirements-learning.txt",
+      "bytes": 194,
+      "sha256": "9161c92c864f0fb01855162abd2aea92162b0bc7d606e51c0d09e63a31dfefad"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/requirements.txt",
+      "bytes": 78,
+      "sha256": "4331a3fcedab8fe7845038746406f95a18ef36ef7a54121f0c8829314cd60ea4"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/scripts/bootstrap.sh",
+      "bytes": 361,
+      "sha256": "e7ed97bea95b0c0d6f78bf59bc1dfe9f0d0f138e1c72ce24cc4b70fbc196dc66"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/scripts/browser_smoke.py",
+      "bytes": 8724,
+      "sha256": "26f42191c4d2f5250e300eb2be4c5aa3498fab747357ccbd2a49465133469ce6"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/scripts/demo_cooperation.py",
+      "bytes": 8539,
+      "sha256": "c52bc8c0aee8a40ee06285524af60988abc3f77a877cafbe19cd1142a63c1068"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/__init__.py",
+      "bytes": 93,
+      "sha256": "bb5f0b129c7237ed671ecb232b58ae56cdb8f864c89482f3158263299594f44f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/__main__.py",
+      "bytes": 48,
+      "sha256": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/analysis.py",
+      "bytes": 17188,
+      "sha256": "0349e1e9948ec6d86602df6d71159e241a889e7c8087bf6641a6db498c5a0fba"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/cli.py",
+      "bytes": 3960,
+      "sha256": "1aab27941a5e814e96ef8599535e10efabdf1a962782783121b98918bf93d486"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/contracts.py",
+      "bytes": 21485,
+      "sha256": "754c66795ef9d643c91e6096a187088c46a9a25ca506414431dffb0d8217a408"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/cooperation.py",
+      "bytes": 14648,
+      "sha256": "3e16be4b7cb7d2b43dc022836d7d716ae9a402cc037cbf1e0c94df91a626dbb7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/evidence.py",
+      "bytes": 15267,
+      "sha256": "4ee01038e866e0d3c19c46af64999fae14b9c1501006dc7e699c5f9693b56a64"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/execution.py",
+      "bytes": 4424,
+      "sha256": "2754b510bb958dff3304972607f89d071f78514a75e3b420c6a13e035fb1da78"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/geometry.py",
+      "bytes": 7501,
+      "sha256": "160324e996e3d3e6554aa487330ae983b41bea87b5a80fe8a4f0a2cccdc70223"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/incremental.py",
+      "bytes": 6114,
+      "sha256": "affa686eed27fc72b6dea4f89be66cd7d7247143528e23f4246cc5c1a5dc21ba"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/learning.py",
+      "bytes": 5401,
+      "sha256": "eed4ce3056215dcbd6089bc766222abbd31c54e25e9614599ad5013ca176e6bb"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/model_runtime.py",
+      "bytes": 7333,
+      "sha256": "5cb6ce236930c78d75b08c35b482a197ca1a2a92a4cc5d83838f712df26127ce"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/multimodal.py",
+      "bytes": 16022,
+      "sha256": "fa935f0e460dc97db263bd9db7fc058132b78f2a36a2fd1430f23fc50855fbc9"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/pipeline.py",
+      "bytes": 6602,
+      "sha256": "481834abf52dc2808a7e17cdd31616e1bac2732c0c9ea5aa49469a9829977fa0"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/planning.py",
+      "bytes": 15123,
+      "sha256": "dbcc793f146ae8df82752bd25751fffce662c7ac1f78331e937a9bf57ca580fb"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/reference_geometry.py",
+      "bytes": 3204,
+      "sha256": "499c2cdddc1d9cc33f734e1870669f2549cb8caf077e54568b50f02ed10d5fe6"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/resources.py",
+      "bytes": 9707,
+      "sha256": "394cbbddd20f44619b54a6b419bb5249a51622bdc24836d9e154bd7f54c5ac66"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/static/app.js",
+      "bytes": 18122,
+      "sha256": "21e5fe318a86daf0dc0c471172701bb845e3c867ea53fd8cc44979b7632141fb"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/static/index.html",
+      "bytes": 4254,
+      "sha256": "fb478c2edc37582758a31116715b0a46bee8f97ad160ab0e433b7dd2a45d629f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/static/style.css",
+      "bytes": 6909,
+      "sha256": "4cf06f55cb1d7983c16ce75512de345d012afb6290cd195a7a81a25d6165b15d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/storage.py",
+      "bytes": 8706,
+      "sha256": "5bdb61ee9725fc84cb757adf0775beae3eb0b494f4844b3aaa464b67a2dcf79c"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/synthetic.py",
+      "bytes": 16329,
+      "sha256": "c3ec3790f3b92dfcf7b7866e7e855545fc5fc838b4cd9e6ef10a3bcd86a8ebc5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/training.py",
+      "bytes": 18097,
+      "sha256": "e98009dd5222853b681ae8f8acca4c9e8a9e553b26fcb1031285db68b7727d4c"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/verification.py",
+      "bytes": 17734,
+      "sha256": "cd1703c3e7a6ac4f931c6226c10c7d77e05e7479ab296b69b0c93b080f4836bb"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/web.py",
+      "bytes": 14211,
+      "sha256": "1559a20923250a47c2990b09f8a98071e66047b225594dc2d979badd08035835"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/src/chengkong/world.py",
+      "bytes": 19483,
+      "sha256": "90416a91842a69ed9be04900c074ffaa716b1900273646ddc5133ef1172c88af"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_analysis_scope.py",
+      "bytes": 1493,
+      "sha256": "f158b3ec646d7e19579599f4ee8c18bd91a95e34208d3e6b521393d932b5a674"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_cooperation.py",
+      "bytes": 6424,
+      "sha256": "1f438282f033843ad206b3d88d258ee38836a8174889d76e4656a5f2edda2988"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_events_v2.py",
+      "bytes": 7641,
+      "sha256": "46884403486fdaa46ab3772d6c1dad0b80d0e68bb1b676282710b31a22c31125"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_evidence_v2.py",
+      "bytes": 6033,
+      "sha256": "b65aa239e29b591153ea4b8a3979d9c32fa05783064060305f837283b1b2d624"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_execution.py",
+      "bytes": 4648,
+      "sha256": "5ba1abb09da8ca04a0a4bae70312d593cea4158bf559e5b98125c3e151fc6791"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_geometry.py",
+      "bytes": 3850,
+      "sha256": "6441e454e41a92ffa68b2456b38c761d4004106c8a5c83e0f826975c27e0ed66"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_incremental.py",
+      "bytes": 3339,
+      "sha256": "c000750e4a97ad96ceda8e5356e32f32c61adc6f761fac9b78af836077df8306"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_learning_v2.py",
+      "bytes": 7867,
+      "sha256": "c3c7e422f1cea9bc95489a83a25a48b62543736dccb822319752c0652fc06c59"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_multimodal.py",
+      "bytes": 10532,
+      "sha256": "c101f8828fb04939c450200c09eba2d37177354a528b54d2d7418e6ef809e37c"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_pipeline.py",
+      "bytes": 11948,
+      "sha256": "41c95850313f9a3cc3c26ea047423f8aafdfff6109928d59c699e723796317d5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_planning.py",
+      "bytes": 3955,
+      "sha256": "3992d203446447d803182f2eaf0843863e7a58ebd2a4940548f849919d50a839"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_reference_geometry.py",
+      "bytes": 1733,
+      "sha256": "b583868aa9d3e1c4d56ed44768cbff441722482b1d10d2b474d8d8f323f5ed9b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_resources.py",
+      "bytes": 9554,
+      "sha256": "bb37f6dbfcd2a41bc534c160cf78bc37a1f0d0d8a5db999c815b72bd24d41fc1"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_safety_regressions.py",
+      "bytes": 8084,
+      "sha256": "311c945c009d272659bee2eeaad5ab4e0c7f178f45ddbb458cb27cdf5d19c395"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_storage_v2.py",
+      "bytes": 8135,
+      "sha256": "ef3948609f137aa943edc0358894b2c913cb539acb49d7c93fb92182f9641d71"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_verification.py",
+      "bytes": 5655,
+      "sha256": "273e5d8d84021aaa259ff6f028373e2e1de524155e361a042c688bb9e0a86ae4"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_web_api.py",
+      "bytes": 16671,
+      "sha256": "b4d47dc9e4075787ea0081ab8171357e43109715ca1a07350c62b5d4dcbb19ee"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/baseline_round2/source/tests/test_world.py",
+      "bytes": 5585,
+      "sha256": "353a03a27f486bbb9fd4c025cd7757d8a4cf17fd7812e30daf17e806db77ff12"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/benchmark.json",
+      "bytes": 1614,
+      "sha256": "2990f872259715953b72d1e680598df0da2ab6b1d6559fa735958602be3979d4"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/calibration.json",
+      "bytes": 2399049,
+      "sha256": "0e79de1e57a55e67e0cbb0f9cb9ed469435b752ab3542547a1a2608c18d80be3"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/data_manifest.json",
+      "bytes": 10347,
+      "sha256": "82e1411152bdaf425c64b1377fc34ddadbda458c080fcbeb868519ebeaba95f0"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/protocol-frozen.json",
+      "bytes": 7857,
+      "sha256": "061cea4969fe8cdb27c1c512d7623c94a5fe79338a34f95e9631d3d81cc48323"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/round2-audit.json",
+      "bytes": 2468,
+      "sha256": "184dbe8554c4c0bad61e1d0a73e0b198d4291786147407de6a03f6e3bc801c34"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/simulator_truth.jsonl",
+      "bytes": 168917,
+      "sha256": "334cecfde3565236fb76c401118177b9b43c32d11001dd7483e3ac8cd326e647"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/test.json",
+      "bytes": 1904541,
+      "sha256": "ab9de15e876de4a3c5595f9ca8e4e16a08a08f88c18fbb2175eca24484b2a2c5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/train.json",
+      "bytes": 5352213,
+      "sha256": "63d3182a683d8155dc4c4675b5f2ab85e9e06807c953520cb3ab5c8ef6f73cb9"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/validation.json",
+      "bytes": 1548427,
+      "sha256": "7434b13351c0413773daf3d5ca64dbfa4a8fb644ee152964b4d64aaad1717f9b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3-pretest-prefix-audit/visible_scenarios.jsonl",
+      "bytes": 2159925,
+      "sha256": "71fd22de8e9a7d18212282fadf3949dc090c34e6ca58753eff35f12bc7af5cb4"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/benchmark.json",
+      "bytes": 1617,
+      "sha256": "4219f8a57f3e3dd8a9709f8fd2b241431a7368dc0a8eeea972cba0a88c612af2"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/calibration.json",
+      "bytes": 2401833,
+      "sha256": "336c11e21bb0a20dce5c5f04c8f5caaca58e782af1272822bf4357c802c1e155"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/data_manifest.json",
+      "bytes": 10347,
+      "sha256": "bd192f10f3eff524a600a9ffa7e4ebaec2b4c34292167d17979edf6efa942847"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/protocol-frozen.json",
+      "bytes": 7858,
+      "sha256": "08381b9759a9fe73c527e8fb0800b127fea1905f06c3cf672cc88f2ab9f7da34"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/provenance-addendum.json",
+      "bytes": 5224,
+      "sha256": "52765be09523ac6a7431312751e1d278c84bf8d48c61d3fd7cc034a7b7c209a5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/round2-audit.json",
+      "bytes": 2468,
+      "sha256": "184dbe8554c4c0bad61e1d0a73e0b198d4291786147407de6a03f6e3bc801c34"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/simulator_truth.jsonl",
+      "bytes": 168917,
+      "sha256": "334cecfde3565236fb76c401118177b9b43c32d11001dd7483e3ac8cd326e647"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/test.json",
+      "bytes": 1905882,
+      "sha256": "2f9536d47075bf34976b9c6c162eecae25e9f609a288935256b86a5542e54d7b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/train.json",
+      "bytes": 5358564,
+      "sha256": "e6d048fcd1869ed91366e39b402f7b092cab9d28faf44880655d33ada77948e5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/validation.json",
+      "bytes": 1549099,
+      "sha256": "61d794e743ca9ab803a12f9f26ec4982f22fb52057841b5f93aeadb121c386a4"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-data/round3/visible_scenarios.jsonl",
+      "bytes": 2159925,
+      "sha256": "71fd22de8e9a7d18212282fadf3949dc090c34e6ca58753eff35f12bc7af5cb4"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/calibration.json",
+      "bytes": 830,
+      "sha256": "11b6bbaaff19ba66a32e8704e6410fa05492870a549839ae946a60de4f25d5b9"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/evaluate-output.json",
+      "bytes": 4297,
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/evaluation.json",
+      "bytes": 4297,
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/fit-config.json",
+      "bytes": 695,
+      "sha256": "9a2769610e18c7ac39cfedbe6a217f91a3a50aa9f292f80ce7f726a175c5a778"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/gnn-training.json",
+      "bytes": 4573,
+      "sha256": "269e51413427b655583c178c276c6d04a69b094acab9bb797fbfa46d7840a689"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/gnn.npz",
+      "bytes": 2880,
+      "sha256": "9ab10a995cad72bb8d22c9e976c5b8c6fc5d1291899570410a6e70bc20a5268b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/manifest.json",
+      "bytes": 7712,
+      "sha256": "9a148ecb15bef2335969d18b11cb4a206ab31b90baf0527a9aecb4599828b61f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/quantile_lower.json",
+      "bytes": 47099,
+      "sha256": "e6afff2813b69d380309ae252db337c2ac8c9a9d71663626c9b9998b20d07538"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/quantile_upper.json",
+      "bytes": 54477,
+      "sha256": "9e9c20d2635039c4958a5d901b8d6f8d234a3172d4a28eb819cc758b0230f045"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/ranker.json",
+      "bytes": 67812,
+      "sha256": "29abab0e068f0961f1df0fca87c723d42cc6b2049810816a0763f2d5200ab46f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/sensitivity.json",
+      "bytes": 65402,
+      "sha256": "970d488f5dd98c62355ec40489139bc25e396ff62f3d0a22a55d72ed113edd5f"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round2/train-output.json",
+      "bytes": 4297,
+      "sha256": "a5e96dcb9e20c550f7cdec3a05b2b5974cb17b81b48d75e520cfebc15b93de79"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/INVALIDATED_BEFORE_FINAL_TEST.json",
+      "bytes": 342,
+      "sha256": "08bd86b68b5e46220a7158b2fab62b3f8961f95877d489dbff7e37e87e970fae"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261024-isolated.json",
+      "bytes": 120,
+      "sha256": "14a8de5a0b8a4009226c1421579e7cdb5f5dd5df2f39a06101d4b88025b336d3"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261024-isolated.npz",
+      "bytes": 4002,
+      "sha256": "128013cf6db65571eb2fa3ef0dc048b3eaa6d62da8a3c36364fdd48051c943df"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261024-weighted.json",
+      "bytes": 121,
+      "sha256": "306df24edccdbc67adc9063508573b7ea9fb0e1cf8402469da484251612be58d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261024-weighted.npz",
+      "bytes": 4002,
+      "sha256": "42eec96402c73c47c3cf3dcf0e7508f58f44c3181b3e33b88e2ba3743c16dca5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261025-isolated.json",
+      "bytes": 119,
+      "sha256": "442644a158902bf4708c18caf44ddd6e0f283d04ad2aa06403fc91ff2a0f24e1"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261025-isolated.npz",
+      "bytes": 4002,
+      "sha256": "266b994f789b2b0aafeaaed178b7aa00c29d5508265e9d60fdd97a674463021e"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261025-weighted.json",
+      "bytes": 118,
+      "sha256": "6436addfcafc40016ca190eb238721a7f2b320e5efb3ded735c1b5392f8a3140"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/gnn-0-20261025-weighted.npz",
+      "bytes": 4002,
+      "sha256": "374261aa5c351f7eec2f5c916cdaf2fad38705c0c1e04c698c1fdb97cb7aa315"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/node_baseline-0-20261024-none.json",
+      "bytes": 51812,
+      "sha256": "5db6a8f6bf285686b47a152801d6160f5fe2b1ea27d3ec01cd697711da74201c"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/quantile_lower-0-20261024-none.json",
+      "bytes": 44072,
+      "sha256": "67de7b170c3fa211bbb645190a794919a62b014c081d2347dc707e4d0d28465b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/quantile_lower-0-20261024-visible_duration_scale.json",
+      "bytes": 44147,
+      "sha256": "1eaad857a4b6da373b89f80c2d927b7caf77a7f4734da490b9271749cf418542"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/quantile_upper-0-20261024-none.json",
+      "bytes": 51191,
+      "sha256": "2705a191be5ac9e05d2af8db2c5a71963bccf3c0e6a6b86123fef91b36018a00"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/quantile_upper-0-20261024-visible_duration_scale.json",
+      "bytes": 51031,
+      "sha256": "feffdc69a4b858bf40adda9969cb6edf6953d9afa1ec297003086555e8dcddf7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/ranker-0-20261024-none.json",
+      "bytes": 45867,
+      "sha256": "0c209fa1d62365a5841d294b14c0ba8eac053e5535f2ab87e903b776ddd0dede"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/ranker-1-20261024-none.json",
+      "bytes": 79346,
+      "sha256": "d2d54d516eb1430158e906f359bd1f7df1677507f521af7633c9024765220aa7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/sensitivity-0-20261024-none.json",
+      "bytes": 52225,
+      "sha256": "8ec990a8bcfbadff40fe88a5aa6cdfc9e41262e22df34c04c9444f35e2936127"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/attempts/sensitivity-1-20261024-none.json",
+      "bytes": 103318,
+      "sha256": "a68412fd66a942ba90784d448e3fe6462640db809671e1cc526bcb5e5e6c7416"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/calibration.json",
+      "bytes": 2620,
+      "sha256": "6886637bd682dec5f2f9195545f3668b4054bbe11e801c5dac9285ff02804d32"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/fit-config.json",
+      "bytes": 1119,
+      "sha256": "8c9bdde81de961c5e1b011651718cdabc5f46bd75570b8872b9be5a1c22bc21e"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/gnn.npz",
+      "bytes": 4002,
+      "sha256": "42eec96402c73c47c3cf3dcf0e7508f58f44c3181b3e33b88e2ba3743c16dca5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/manifest.json",
+      "bytes": 18467,
+      "sha256": "adf66accbfd42034e99f59c17a8d889b8fd562efca35123e834a17b81922f468"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/quantile_lower.json",
+      "bytes": 44072,
+      "sha256": "67de7b170c3fa211bbb645190a794919a62b014c081d2347dc707e4d0d28465b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/quantile_upper.json",
+      "bytes": 51191,
+      "sha256": "2705a191be5ac9e05d2af8db2c5a71963bccf3c0e6a6b86123fef91b36018a00"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/ranker.json",
+      "bytes": 79346,
+      "sha256": "d2d54d516eb1430158e906f359bd1f7df1677507f521af7633c9024765220aa7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/selection-frozen.json",
+      "bytes": 2066,
+      "sha256": "30ce188756d46f07e5fc43d0333a1d59429e0712578650cf8f3346dac5c28c63"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3-pretest-prefix-audit/sensitivity.json",
+      "bytes": 103318,
+      "sha256": "a68412fd66a942ba90784d448e3fe6462640db809671e1cc526bcb5e5e6c7416"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261024-isolated.json",
+      "bytes": 120,
+      "sha256": "14a8de5a0b8a4009226c1421579e7cdb5f5dd5df2f39a06101d4b88025b336d3"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261024-isolated.npz",
+      "bytes": 4002,
+      "sha256": "128013cf6db65571eb2fa3ef0dc048b3eaa6d62da8a3c36364fdd48051c943df"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261024-weighted.json",
+      "bytes": 121,
+      "sha256": "306df24edccdbc67adc9063508573b7ea9fb0e1cf8402469da484251612be58d"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261024-weighted.npz",
+      "bytes": 4002,
+      "sha256": "42eec96402c73c47c3cf3dcf0e7508f58f44c3181b3e33b88e2ba3743c16dca5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261025-isolated.json",
+      "bytes": 119,
+      "sha256": "442644a158902bf4708c18caf44ddd6e0f283d04ad2aa06403fc91ff2a0f24e1"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261025-isolated.npz",
+      "bytes": 4002,
+      "sha256": "266b994f789b2b0aafeaaed178b7aa00c29d5508265e9d60fdd97a674463021e"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261025-weighted.json",
+      "bytes": 118,
+      "sha256": "6436addfcafc40016ca190eb238721a7f2b320e5efb3ded735c1b5392f8a3140"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/gnn-0-20261025-weighted.npz",
+      "bytes": 4002,
+      "sha256": "374261aa5c351f7eec2f5c916cdaf2fad38705c0c1e04c698c1fdb97cb7aa315"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/node_baseline-0-20261024-none.json",
+      "bytes": 51812,
+      "sha256": "5db6a8f6bf285686b47a152801d6160f5fe2b1ea27d3ec01cd697711da74201c"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/quantile_lower-0-20261024-none.json",
+      "bytes": 44072,
+      "sha256": "67de7b170c3fa211bbb645190a794919a62b014c081d2347dc707e4d0d28465b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/quantile_lower-0-20261024-visible_duration_scale.json",
+      "bytes": 44147,
+      "sha256": "1eaad857a4b6da373b89f80c2d927b7caf77a7f4734da490b9271749cf418542"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/quantile_upper-0-20261024-none.json",
+      "bytes": 51191,
+      "sha256": "2705a191be5ac9e05d2af8db2c5a71963bccf3c0e6a6b86123fef91b36018a00"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/quantile_upper-0-20261024-visible_duration_scale.json",
+      "bytes": 51031,
+      "sha256": "feffdc69a4b858bf40adda9969cb6edf6953d9afa1ec297003086555e8dcddf7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/ranker-0-20261024-none.json",
+      "bytes": 45867,
+      "sha256": "0c209fa1d62365a5841d294b14c0ba8eac053e5535f2ab87e903b776ddd0dede"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/ranker-1-20261024-none.json",
+      "bytes": 79346,
+      "sha256": "d2d54d516eb1430158e906f359bd1f7df1677507f521af7633c9024765220aa7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/sensitivity-0-20261024-none.json",
+      "bytes": 52225,
+      "sha256": "8ec990a8bcfbadff40fe88a5aa6cdfc9e41262e22df34c04c9444f35e2936127"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/attempts/sensitivity-1-20261024-none.json",
+      "bytes": 103318,
+      "sha256": "a68412fd66a942ba90784d448e3fe6462640db809671e1cc526bcb5e5e6c7416"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/calibration-impact-correction.json",
+      "bytes": 21015,
+      "sha256": "126cecdbda17b00b274a75cb6293c857eeaa9e9ca04bd068308aba70c2f16281"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/calibration.json",
+      "bytes": 2620,
+      "sha256": "6886637bd682dec5f2f9195545f3668b4054bbe11e801c5dac9285ff02804d32"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/diagnostic-addendum.json",
+      "bytes": 50887,
+      "sha256": "843d42e3a70284ba7b7f233beee7983f547423f73fa5d11dc7ee12f38af2da0b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/evaluation-reproduction-1792691215302106471.json",
+      "bytes": 402553,
+      "sha256": "12cf67e7496ecce8e18511850235624b41e10408edd8b65f95d671c6fa183fa0"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/evaluation.json",
+      "bytes": 401556,
+      "sha256": "5f3205f649f65f9bb5de817fa349f1c18dced1b12bbf97deaf6857b55104e451"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/fit-config.json",
+      "bytes": 1119,
+      "sha256": "8c9bdde81de961c5e1b011651718cdabc5f46bd75570b8872b9be5a1c22bc21e"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/gnn.npz",
+      "bytes": 4002,
+      "sha256": "42eec96402c73c47c3cf3dcf0e7508f58f44c3181b3e33b88e2ba3743c16dca5"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/manifest.json",
+      "bytes": 18465,
+      "sha256": "b56dcc83a6b74a0599956f2981b6f302b7b2f14a12aa25dea39a5a194651fd75"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/quantile_lower.json",
+      "bytes": 44072,
+      "sha256": "67de7b170c3fa211bbb645190a794919a62b014c081d2347dc707e4d0d28465b"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/quantile_upper.json",
+      "bytes": 51191,
+      "sha256": "2705a191be5ac9e05d2af8db2c5a71963bccf3c0e6a6b86123fef91b36018a00"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/ranker.json",
+      "bytes": 79346,
+      "sha256": "d2d54d516eb1430158e906f359bd1f7df1677507f521af7633c9024765220aa7"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/selection-frozen.json",
+      "bytes": 2064,
+      "sha256": "d68115b66d1aad663f5c08170618f0e77a885901f0e73f63c00b6ec70ee21e02"
+    },
+    {
+      "path": "/root/autodl-tmp/chengkong-models/round3/sensitivity.json",
+      "bytes": 103318,
+      "sha256": "a68412fd66a942ba90784d448e3fe6462640db809671e1cc526bcb5e5e6c7416"
+    }
+  ],
+  "python": "Python 3.10.8",
+  "dependencies": [
+    "# Editable Git install with no remote (chengkong-zhihu==0.2.0)",
+    "-e /root/autodl-tmp/chengkong-zhihu/src",
+    "cloudpickle==3.1.2",
+    "greenlet==3.5.6",
+    "joblib==1.6.0",
+    "numpy==2.2.6",
+    "playwright==1.55.0",
+    "pyee==13.0.1",
+    "scikit-learn==1.7.2",
+    "scipy==1.15.3",
+    "threadpoolctl==3.7.0",
+    "typing_extensions==4.16.0",
+    "xgboost-cpu==3.0.5"
+  ],
+  "source_archive": "/root/autodl-tmp/chengkong-data/round4/baseline-source.tar",
+  "source_archive_sha256": "55d99de6e63a2bb7e334caf60a79cda8f3ade07d9a77d2daf9de486887eb53df"
+}
