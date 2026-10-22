@@ -298,3 +298,32 @@ tests/test_world.py
 结束检查数据盘仍XFS/rw，总50G、约49G可用；round3模型/评估约1.8MiB、数据约13MiB。未更换环境或安装大型模型。QA HTTP服务和临时SQLite由脚本关闭，不后台常驻。
 
 真实VLM尚无项目配置，未调用；只用明确模拟响应验证契约。真实施工历史学习与现场泛化未做。GeoJSON仅有显式点对应；公开USGS单条负例是格式/拒绝链路测试，不是施工现场资料。运动感知间隙搜索、设备动力学/摆动/变幅、任意字段/坐标转换、真实飞控及多实例过程恢复仍未实现。来源、模型和适用边界详见DATA_SOURCES、IMPORTS、MOTION、MODEL_CARD_ROUND3。
+
+## 第四轮：动态航路维护与运行验证
+
+起点为实际`3bcf1bd`、工作区干净，未强制回退。`docs/source`没有最终3.2。复用现有`.venv`及CPU学习依赖；数据盘XFS仍可写，未改驱动/CUDA或原环境。186个round2/round3数据、模型与历史清单文件原hash一致，见`configs/round4-baseline.json`、`runs/round4/original-artifact-final-check.json`。
+
+| 实际执行 | 结果与证据 |
+|---|---|
+| 起点归档代码基线 | 185项通过，14.750秒；`runs/round4/baseline-tests.txt`，源码归档在数据盘round4/baseline-source.tar |
+| 时变SIPP专项 | 12项通过，含等待后通行、期限迫使绕行、持续禁入、运动误差、共享等待资源、端点清空但航段碰撞、缓存版本与耗尽保守失败；`dynamic-planning-tests.txt` |
+| 原运动/规划专项 | 13项及7项通过；`dynamic-motion-regression.txt`、`dynamic-planning-regression.txt` |
+| 独立手算/方法审查 | `recovery-motion-review.json`与`docs/ROUND4_DYNAMIC_REVIEW.md`，时间管整段检查与独立Lipschitz参考，不共享规划判断函数；明确共享运动数据契约及支持边界 |
+| 恢复与原Web/事务专项 | 26项通过、初始时间/策略边界另1项；`recovery-targeted.txt`、`recovery-initial-policy.txt` |
+| 恢复异常与完整预约修复 | 连续两次异源SQLite请求均拒绝；等待区/同机驻留与回滚9项通过；`recovery-audit-fixes.txt` |
+| 正常进程停启、备份与独立恢复 | 3独立服务进程、15次HTTP通过，完整world/历史/计划/待接受材料/预算强断言；`recovery-process-final/result.json`；服务均关闭 |
+| 首次完整回归 | 214项中2项失败，原因是候选里新增计时和默认结果计时破坏不可变/确定性契约；原日志`final-tests.txt`及失败浏览器`browser-final/`保留，不计为通过 |
+| 修复后完整回归 | **214项通过、23.275秒、无skip**；`final-regression-verified.txt`。计时从候选移到诊断，默认结果仍严格全量相等，Web/CLI显式开启profiling，没有削弱原断言 |
+| 后续可复现边界修复 | 同一路线在不同搜索预算下推荐上下文会不同，原route-only ID可碰撞；ID现绑定完整不可变候选。新增真实两预算持久化回归，连同原pipeline/展示共**18项通过、7.756秒**；`candidate-identity-regressions.txt`。当前用例总数215，但未把测试数当效果指标 |
+| 最终实际浏览器 | `browser-verified/report.json`，三套演示、22次API、0页面脚本错误，策略切换/过期拒绝、补证接受、显式采纳、在途冻结、真实导出、只读回放、正常重启活跃场景与时间恢复、移动宽度检查；服务均关闭 |
+| CLI与材料 | `cli-dynamic.json`实际2候选，`cli-conservative.json`实际1候选；`cli-event-demo/summary.json`12快照；`import-demo.json`实际接受后计算 |
+| 常规检查 | compileall、三份前端JS语法、pip check、git diff --check实际通过；无新增依赖安装、远端推送或公网监听 |
+
+以上相对路径均在`runs/round4/`。动态演示初始0秒，等待约15.2166秒、17.2166秒起飞、37.2166秒结束；原7–14秒横穿航段在11秒经过吊索，节点均可用不足以判断整段通过。绕行也可行，不能据单个可行等待候选宣称它更优。
+
+完整序列评估与诊断记录见`ROUND4_RESULTS.md`、`LEARNING_ROUND4.md`。旧12事件44任务的统计定义已纠正为任务出现次数，5完整联合候选事件覆盖14任务，不是仿真已执行14任务；另30出现次数不等于30个已证明不可行任务。旧单基础拓扑参数扰动结果的独立单位误标已留下纠错记录；新拓扑结果按3个父拓扑/6序列报告。已观察首次结果和代码/并发QA纠错复现分别保存，禁止当新盲测或继续调参。
+
+仍只验证有限几何/线性轨迹/参数化速度界/简化能耗的合成软件流程。程序相位误差不覆盖未知参数更新生效时刻；有限时间管与搜索图可能漏可行解。真实施工历史、真实多模态/现场效果、多实例、复杂吊物摆动和任意动力学均未完成。
+
+
+第四轮最终运行对照已结束：固定`evaluation-source-topology-v3`、相同6输入/模型/规则/预算，空闲纠错复现83.604s，参考10.018s。主结果`topology_evaluation/final-reproduction-1792694050515993778.json`，SHA及分母见configs/round4-evaluation-artifacts.json。三父拓扑、六序列、24决定：保守16成功、动态规则18、强规则/学习/无边17；完整序列3/6与动态各4/6。全部776pair/策略完成检查、未检查比例0、独立复核拒绝0，不等于当前任务全无冲突。共同成功16决定上学习与强规则代价一致；主批补证查询及等待0。旧结果/协议错误/并发QA影响及代码纠错均留记录，未重新训练或测试驱动调参。总体结论与细表见ROUND4_RESULTS。
