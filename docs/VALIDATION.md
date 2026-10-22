@@ -1,4 +1,6 @@
-# 首轮实际交付与验证记录
+# 首轮实际交付与验证记录（历史）
+
+第二轮当前结果见本文件后半部分；以下首轮条目保留当时状态，不代表当前未实现项。
 
 日期：2026-10-23（Asia/Shanghai）。目录：`/root/autodl-tmp/chengkong-zhihu`。这是合成软件原型的执行记录，不是现实运行认证或完整技术路线完成报告。
 
@@ -87,10 +89,162 @@ JSON导入并校验单位/时间/引用 → 建立几何对象与语义关系 �
 下一步工作及保留的完整路线见 `IMPLEMENTATION_PLAN.md` 与全部32项 `FEATURE_MATRIX.md`（8项W、10项C、10项P、4项I）。
 
 
-# 第二轮阶段记录（进行中）
+# 第二轮实际交付与验证记录
 
-开始时核对main工作区干净、93f10e2存在，没有回退或覆盖。重新执行64项原有基线（0.523秒）通过，日志runs/round2-baseline.txt。dbe3dfd记录执行清单。
+日期：2026-10-23 UTC。当前环境/代码/产物均重新检查，未直接采用首轮报告。起始工作区干净，93f10e2存在，main未回退；docs/source只有README，没有最终3.2。全部为本地软件和合成实验，不是现实部署效果。
 
-已执行专项：事件9项、增量3项、补证5项；协同7、在途7、资源5、独立参考几何3项；多模态5项；学习8项。上述是针对性验证，不代替最终集成回归。语义变更后的两个旧断言准确升级：future-effective事件由不支持升级为“未生效不确认，生效后激活”；结果schema由v1升至v2。没有放宽冲突/采纳/未知等断言。
+## 实际阶段与本地提交
 
-实际小模型训练配置、数据规模、分组与对照指标详见docs/LEARNING.md；权重/data均在数据盘、代码和小清单进入Git。没有接入真实VLM，已验证的是模拟协议与本地HTTP传输。
+| 阶段 | 实际结果 | 本地提交 |
+|---|---|---|
+| 审计、环境与清单 | 64项基线重新通过，定位原占位/几何共享/任务2判断条件 | dbe3dfd |
+| 事件、增量与补证 | 事件全类型、双时间/迟到/待生效、依赖、两种触发和校验写回 | 042a272 |
+| 协同与在途 | 有限重排回溯、扩集合、预约、同机资源、真实稳定性代价、冻结前缀及独立几何参考 | ea91c8f；驻留边界修复ced20e5 |
+| 实际小模型训练 | 分组生成/标注、XGBoost/GNN/排序/分位数及独立校准、保存加载与实际对照 | 0e9ed5b |
+| 多模态与Agent | 结构化服务适配、模拟/超时、引用与尺度校验、受控更新、统一补证请求 | 7f56ee9 |
+| Web与采纳事务 | 实际后端+SQLite+静态界面、版本校验/回滚/并发、浏览器闭环 | 3d40cc9 |
+| 最终验收与文档 | 下列实测命令、说明、截图和模型结果 | 收尾提交见Git日志 |
+
+阶段2和3并行开发，因此提交顺序不等于用户清单编号顺序。没有配置远端或推送。Git作者采用各次提交局部`-c user.name=Codex -c user.email=codex@local.invalid`；首次学习阶段提交因无全局作者身份失败后用相同局部身份成功，没有更改全局Git配置。
+
+## 执行命令与产物
+
+以下均在项目根实际执行。完整回归日志为runs/round2-final-tests.txt，末次139项通过（10.081秒）。初次136项通过后，追加实证发现驻留与施工包络交叠漏检；修复并增加3项强回归后执行末次检查，没有降低断言或重复训练。
+
+| 命令/检查 | 实际结果 |
+|---|---|
+| `.venv/bin/python -m unittest discover -s tests -v` | **139项通过（10.081秒）**；覆盖原64项及新增语义/资源/学习/事务/HTTP，详见日志 |
+| `.venv/bin/chengkong analyze --output runs/analysis-v2.json` | 1个完整复核通过候选，原任务未改 |
+| `.venv/bin/chengkong demo --output runs/demo-v2` | 12快照及summary.json |
+| `.venv/bin/chengkong analyze --as-of 360 --inflight --output runs/inflight-v2.json` | 从当前模拟状态产生1个复核通过候选，已执行前缀保留 |
+| `.venv/bin/chengkong analyze --model-dir /root/autodl-tmp/chengkong-models/round2 --learned --output runs/learned-v2.json` | 实际加载训练产物、输出排序和结束误差区间、1个复核通过候选 |
+| `scripts/demo_cooperation.py --case cooperation --output runs/demo-cooperation`（用venv Python） | 3个失败顺序后task_2→task_1成功；绕行新增关联task_3；转场余能−114明确拒绝 |
+| `scripts/demo_cooperation.py --case inflight --output runs/demo-inflight`（用venv Python） | 120/210/360三个时刻各3项任务前缀保持，历史冲突单列；3份完整计算输出 |
+| `.venv/bin/python -m chengkong.training evaluate --config configs/training-small.json` | 从保存权重重新加载，结果与小清单一致；runs/round2-evaluation-command.json |
+| `.venv/bin/chengkong serve --host 127.0.0.1 --port 8765 --db-dir runs/web-final-qa --model-dir /root/autodl-tmp/chengkong-models/round2` | 实际启动，GET health和state返回ok/v2/1候选/loaded_synthetic；runs/round2-server-entry.json |
+| `.venv/bin/python scripts/browser_smoke.py`（下述局部环境变量） | 6组实际UI工作流、14次API请求、0页面脚本错误；桌面/390px页面无横向溢出 |
+| `.venv/bin/python -m compileall -q src tests scripts` | 成功 |
+| Playwright自带Node `--check src/chengkong/static/app.js` | JS语法通过 |
+| `.venv/bin/python -m pip check` | No broken requirements found |
+| editable安装 | chengkong-zhihu0.2.0成功，仅项目venv |
+| findmnt/df | 数据盘XFS/rw，50G总量/约49G余量，保留原环境和无关文件 |
+
+模型目录约292KiB，合成数据目录约3.4MiB；未下载大型AI权重。产物校验清单`runs/round2-artifact-manifest.json`包含实际文件尺寸及SHA256。原始合成例JSON未修改。
+
+## 关键验收与已修复问题
+
+- 原始连续航段穿越仍按135.7–148.3、395.7–408.3秒检出。任务2仅在收到完成且有效结束早于其穿越时才clear；延期确认不抹掉已经发生的冲突；完成不拆除塔吊。
+- 独立复核不调用SIPP搜索器，从当前world重建所有约束，保留任务/服务/窗口/能耗条件。新增reference_geometry采用独立距离最小化参考与手算边界，主规划/主复核仍共享底层primitive；没有声称完全独立引擎或形式化证明。
+- 显式预算区分超时、搜索耗尽、信息不足、有限图未找到；绕行引入新航线冲突或起降点冲突后扩集合重算。保留所有服务要求，优先级顺序失败有实际记录。硬检查通过后按变更任务数、正延误、正增距、正增耗的字典序比较。
+- 迎面/交叉/同向连续保护距离、共享起降/显式等待容量、同机转场时间/能耗/补能及在途前缀均有专项检查。收尾复查实际发现周转驻留未查禁等规则及邻近飞行器，新增两条强回归后修复；进一步实证发现驻留[244,350]与短时施工[260,300]交叠漏检，现同时进入完整世界约束检查和独立reference；新增3项检查涵盖未知几何及在途历史区分。地面carrier运输途中避障/载具容量仍为未建模范围。
+- 完整设施/活动事件、同ID幂等或冲突拒绝、有效/到达时间分离、未来生效及迟到重建已验证。增量缓存与相同world下全量结果逐字段一致；新几何不只沿旧关联查，资源全量复算，候选依赖保守扩大。Web实际接入候选失效图，事件和采纳后旧候选均列入失效集合。
+- 补证两触发与Agent共用请求ID/预算/期限。读取已有可见或明确模拟记录；无证据/超时/预算耗尽保留未知。Agent无法定位字段则人工识别；真实HTTP验证材料缺项→请求→模拟记录→第一层→任务2转clear、设施仍在、计划不自动改变。其他高度/坐标字段适配器未接入。
+- SQLite测试在事务写入中注入失败，world/预约/history/decision完全回滚；双线程各自连接竞争同revision，仅一个提交；过期环境/预约/计划拒绝；候选同ID异内容拒绝，历史decisions不可变。
+- 实际发现并修复：材料引用未持久保存、嵌套活动几何未做图片尺度检查、refs=[42]引起AttributeError、顶层JSON数组断开请求。现有回归验证明确结构化拒绝、事件引用持久保存且world未变。
+- 两个旧断言因真实功能升级调整：未来有效事件由“不支持”改为“待生效不确认、生效后激活”；结果schema v1→v2。没有降低安全/冲突/未知/采纳断言。
+
+## 浏览器操作证据与复现
+
+脚本启动真实SimulationApp、随机loopback端口与临时SQLite，使用Chromium点击真实控件。它验证初始SVG与任务表→切分支→路径预览→事件→旧候选拒绝→新候选采纳→360秒未知→查询失败保持未知→显式合成证据更新→inflight/learning后端→模拟材料待接受与接受→只读60秒回放→返回360秒当前状态。断言来自HTTP结果和DOM，不用写死业务答案。输出：
+
+- `runs/round2-browser/report.json`：14次实际API路径、6组工作流及page_errors=[]。
+- 同目录`initial.png / adopted.png / evidence.png / models.png / mobile.png`：实际浏览器截图。
+- 首次截图因服务器无中文字体出现方框，局部解压Noto CJK后重新检查；产品本身使用系统字体，不依赖外网字体资源。
+
+此服务器复验命令：
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=/root/autodl-tmp/chengkong-data/browser \
+LD_LIBRARY_PATH=/root/autodl-tmp/chengkong-data/browser-libs/extracted/usr/lib/x86_64-linux-gnu \
+FONTCONFIG_FILE=/root/autodl-tmp/chengkong-data/browser-libs/fonts.conf \
+.venv/bin/python scripts/browser_smoke.py
+```
+
+Playwright是可选验收依赖，服务运行不依赖它。浏览器缺库仅下载deb到数据盘解压，未更改全局系统库，详情ENVIRONMENT。未注册/发布站点或开放公网；QA使用的自建服务已通过Ctrl+C关闭，用户按README重新启动。
+
+## 学习的实际结果与边界
+
+模型版本synthetic-round2-001cfc579ce2，48模板/144事件，完整模板划分为66训练/24验证/27校准/27测试事件。随机种子20261023、可见特征定义、标签/配置/校验和/模板归属已保存；真值另文件，在线特征不接收未来结局。每模型1组配置，训练作业硬超时90秒，未无限调参或以测试集选择参数。
+
+| 合成测试指标 | 模型/校准 | 基线/未校准 |
+|---|---:|---:|
+| XGBoost敏感性MSE | 0.04492 | 0.38250 |
+| GNN排序NDCG | 0.37852 | 包围盒0.40125 |
+| 修复排序NDCG@3 | 0.62421 | 规则0.52738 |
+| 首个提案可行率 | 54.02% | 规则54.02%；全部动作无学习枚举67.82% |
+| 首次可行平均真实代价 | 1.6934 | 规则1.6765 |
+| 结束误差经验覆盖 | 100% | 62.96% |
+| 结束误差区间宽度 | 346.82秒 | 80.81秒 |
+
+GNN和修复代价没有优于基线，因此规则默认保留。排序对照重放相同实际求解结果，不宣称实测端到端加速；校准只有9独立组，100%是27合成测试事件的经验覆盖且区间很宽。它不等于真实施工泛化、整条航线安全概率或现实安全认证。消息传递梯度、邻接影响、分组隔离、禁止答案特征和模型保存加载8项必要测试已实际执行。更多指标/假设见LEARNING与configs/learning-artifacts.json。
+
+## 本轮修改范围与保留缺项
+
+实际文件以`git diff --name-only 93f10e2 HEAD`核对；核心新增cooperation/resources/execution/reference_geometry/incremental、synthetic/training/model_runtime、multimodal/web/static和两个演示脚本，修改world/contracts/analysis/planning/verification/evidence/learning/pipeline/storage/cli与对应测试，更新README、契约/功能/实施/环境/验收/进度及训练配置。保留原始合成输入、技术路线完整方法、根约定与原稿目录；未重置用户文件。
+
+未完成/未验证：真实VLM/LLM服务；真实施工历史演化学习和外部校准；无尺度图像的可靠米制重建；连续吊臂动力学、任意三维图、地面运输路径/载具容量、真实飞行动力学；大型任务集与系统级关闭补证/全量重规划统计对照；真实地图、真实飞控、现实运行及分布式多用户服务。当前物理和学习假设限制已写入条件与说明，不能当作完整研究路线完成。
+
+所需用户资料：最终3.2原稿；带许可的施工记录/材料和可核对有效/到达时间；测量/尺度/坐标高度基准；真实任务/资源/周转/补能参数；项目内显式配置的模型服务、协议、授权和预算。具体后续任务表见IMPLEMENTATION_PLAN。
+
+## 相对93f10e2的实际文件清单
+
+以下来自实际`git diff --name-only 93f10e2`（含本次文档工作区）；环境、权重和运行产物被忽略并保留在数据盘。
+
+```text
+.env.example
+.gitignore
+README.md
+config/multimodal.example.json
+configs/learning-artifacts.json
+configs/training-small.json
+docs/DATA_CONTRACTS.md
+docs/ENVIRONMENT.md
+docs/FEATURE_MATRIX.md
+docs/IMPLEMENTATION_PLAN.md
+docs/LEARNING.md
+docs/PROGRESS.md
+docs/TECHNICAL_ROUTE.md
+docs/VALIDATION.md
+pyproject.toml
+requirements-dev.txt
+requirements-learning.txt
+scripts/browser_smoke.py
+scripts/demo_cooperation.py
+src/chengkong/__init__.py
+src/chengkong/analysis.py
+src/chengkong/cli.py
+src/chengkong/contracts.py
+src/chengkong/cooperation.py
+src/chengkong/evidence.py
+src/chengkong/execution.py
+src/chengkong/incremental.py
+src/chengkong/learning.py
+src/chengkong/model_runtime.py
+src/chengkong/multimodal.py
+src/chengkong/pipeline.py
+src/chengkong/planning.py
+src/chengkong/reference_geometry.py
+src/chengkong/resources.py
+src/chengkong/static/app.js
+src/chengkong/static/index.html
+src/chengkong/static/style.css
+src/chengkong/storage.py
+src/chengkong/synthetic.py
+src/chengkong/training.py
+src/chengkong/verification.py
+src/chengkong/web.py
+src/chengkong/world.py
+tests/test_cooperation.py
+tests/test_events_v2.py
+tests/test_evidence_v2.py
+tests/test_execution.py
+tests/test_incremental.py
+tests/test_learning_v2.py
+tests/test_multimodal.py
+tests/test_pipeline.py
+tests/test_reference_geometry.py
+tests/test_resources.py
+tests/test_storage_v2.py
+tests/test_web_api.py
+tests/test_world.py
+```

@@ -1,65 +1,112 @@
-# 城空智护
+# 城空智护 · 本地合成仿真原型 v0.2
 
-首轮可运行的软件原型：把合成施工记录转成版本化世界状态与时空约束，连续检查既有任务，使用有限航路图上的安全时间区间搜索生成维护候选，再独立复核任务、几何、时间和资源。只用于软件与合成仿真，尚无训练好的AI模型或真实飞行验证。
+施工信息导入 → 世界状态更新 → 三维时空约束 → 连续航段与资源冲突 → 多任务维护候选 → 独立复核 → 显式采纳。现有 Python 后端、SQLite、CLI 与本地 Web 使用同一计算链路。软件不接真实飞控，不自动采纳建议。
 
-## 安装与运行
+第二轮已实际训练小型 XGBoost 敏感性、消息传递 GNN、求解前候选排序、结束误差分位数与独立校准模型；全部只在合成数据上验证，规则仍是默认。真实多模态服务及真实施工历史演化模型未接入/未训练。完整状态见 [功能清单](docs/FEATURE_MATRIX.md)、[验收记录](docs/VALIDATION.md)和[学习实验](docs/LEARNING.md)。
 
-工作目录是 `/root/autodl-tmp/chengkong-zhihu/`，已核验位于50G数据盘。现有独立环境已安装本项目，可以直接运行：
+## 安装与基本计算
 
-```bash
-cd /root/autodl-tmp/chengkong-zhihu
-.venv/bin/chengkong analyze --output runs/analysis.json
-.venv/bin/chengkong demo --output runs/demo
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-`analyze` 默认使用 `examples/park_crane_synthetic.json`、`end_unconfirmed` 情景、决策时刻60秒。输出是可供后续前端读取的UTF-8 JSON。没有常驻服务，命令运行结束后退出；本轮不需要Node、GPU或API密钥。
-
-新机器安装（Python 3.10+，先核验数据盘）：
+当前服务器已有独立 `.venv`，无需修改系统 Python、驱动或全局 CUDA。纯规则后端只依赖标准库；以下命令在项目根运行：
 
 ```bash
 cd /root/autodl-tmp/chengkong-zhihu
+# 新环境才需要安装；脚本复用已有 .venv，不删除文件。
 bash scripts/bootstrap.sh
+.venv/bin/chengkong analyze --output runs/analysis-v2.json
+.venv/bin/chengkong demo --output runs/demo-v2
+.venv/bin/chengkong analyze --scenario end_unconfirmed --as-of 360 \
+  --inflight --output runs/inflight-v2.json
 ```
 
-脚本仅在`.venv`不存在时创建环境，不删除已有环境；构建依赖固定在`requirements-build.txt`，运行时无第三方依赖。网络不可用时，可在已有Python环境中直接执行：
+`python -m chengkong`与`chengkong`入口等价。`demo`生成3个事件分支×4个时刻的12份 JSON 快照。默认快照分析保留历史冲突；`--inflight`显式启用软件仿真中的前缀冻结与余下航程修复。已执行航段不改写，当前点不可无代价移回起点。
+
+## Web 与 SSH 访问
+
+后端同时提供静态前端和 API，没有前端构建步骤。默认只监听 `127.0.0.1`；模型目录必须显式提供：
 
 ```bash
-PYTHONPATH=src python3 -m chengkong analyze --output runs/analysis.json
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+cd /root/autodl-tmp/chengkong-zhihu
+.venv/bin/chengkong serve --host 127.0.0.1 --port 8765 \
+  --db-dir runs/web-demo \
+  --model-dir /root/autodl-tmp/chengkong-models/round2
 ```
 
-实际环境、安装失败原因和处理记录见 [ENVIRONMENT](docs/ENVIRONMENT.md)。`.env.example`是配置说明，不会自动加载；目前仅`CHENGKONG_RUN_DIR`进程环境变量用于设置demo默认输出目录。
+等价后端入口：`.venv/bin/python -m chengkong.web`，支持相同服务参数。省略`--model-dir`仍可使用全部规则流程，界面如实显示本运行时未加载学习产物。加载模型需要下面的可选学习依赖。
 
-## 演示与结果语义
+在自己的电脑执行（将SSH端口和主机替换为实际值）：
 
 ```bash
-.venv/bin/chengkong analyze --scenario on_time_confirmed --as-of 360 --output runs/on-time-360.json
-.venv/bin/chengkong analyze --scenario delayed_confirmed --as-of 360 --output runs/delay-360.json
-.venv/bin/chengkong analyze --scenario end_unconfirmed --as-of 600 --output runs/unknown-600.json
+ssh -N -L 8765:127.0.0.1:8765 -p <SSH端口> root@<服务器地址>
 ```
 
-`demo`生成三种情景在60、330、360、600秒的12份快照，以及`runs/demo/summary.json`。仿真器按观测时刻释放事件，规划器只接收当前可见世界。60秒时三种情景都不知道未来结局，不能凭分支名称提前放行。360秒收到按期完成确认后，任务2的历史完整轨迹不再与该活动重叠；延期或未确认分支仍有冲突。所有分支都保留未拆除的塔吊物理占用。
+浏览器打开 `http://127.0.0.1:8765`。如果本地端口已占用，改为`-L 8766:127.0.0.1:8765`并访问8766。服务在前台运行，Ctrl+C停止；没有配置公网监听、云发布或后台自启动。SQLite保留所选分支的状态；重新演示用新的`--db-dir`，不要删除旧数据库。
 
-默认60秒输入实际检出任务1、2的活动冲突，任务3与活动空间分离；生成绕行候选并独立复核。900秒仅为计算时域，不是活动结束时间；无法等待到一个已知结束时刻时，延后搜索会明确报告在当前图与预算内没有结果。有限占用的专门测试验证了延后与地面等待。330秒之后的示例任务有的已启动，历史分析可回放，程序不改写已执行航段，返回`needs_operational_review_started_task`。
+## 可完整操作的演示
 
-主要输出字段：`world`、`constraints`、`baseline_analysis`、`baseline_joint_analysis`、`baseline_full_review`、`candidates`、`search_diagnostics`、`evidence_requests`、`evidence_results`、`learning_status`。`clear`仅指相应检查范围；候选只有全量复核通过才标记`conditionally_feasible`。条件、版本、变更量、未检查项、搜索失败原因均随结果输出。
+使用新的`runs/web-demo`数据库，按以下步骤操作。这套流程已通过浏览器实际调用后端验证。
 
-## 工程结构与开发依据
+1. 默认“结束未确认”、60秒：查看3项任务、塔吊和活动包络；“冲突证据”显示任务1、2在航段中间穿过活动范围，即使航段端点都在外也会检出。任务2的冲突区间为395.7–408.3秒，记录的计划结束360秒不能解除占用。
+2. 切换“按期确认结束”，在“维护候选”预览路径。点击左侧“计划延期至600秒”，环境版本改变。点击旧候选的“尝试采纳过期候选”，观察拒绝原因；再显式采纳新候选，计划版本与预约版本原子更新。候选生成本身不改现行任务。
+3. 切回尚未修改的“结束未确认”，推进至360秒。在“主动补证”对第一个请求查询已有记录，结果`unknown`。对另一个触发请求点击“提供明确合成完成记录”，它是使用者明确提供的模拟证据，经第一层校验后更新活动状态；设施仍保留。每请求预算1次，重复查询会预算耗尽，不可靠重试捏造证据。
+4. 勾选“冻结已执行前缀”和“启用合成模型排序”，点击重新计算。在途候选只处理当前时刻以后的航程；“学习与材料”展示真实加载状态、排序建议与结束误差区间。没有候选时查看诊断，不能解释为全局不可行。
+5. 在“学习与材料”解析“合成延期材料（模拟响应）”，先查看待接受提议，再显式接受；准备提议不改世界。真实服务未配置，模拟文字不能当作实际模型识别效果。
+6. 在“事件回放”选择初始状态，查看当时60秒的未知信息；回放禁止修改操作。点击“返回当前状态”，当前360秒计划与信息仍在，历史决策记录没有被后来的证据覆盖。
 
-- 第一层：`world.py` / `contracts.py`，输入校验、语义关系、事件和版本化占用；`evidence.py`为仅查询可见记录的补证入口。
-- 第二层：`geometry.py` / `analysis.py` / `verification.py`，连续碰撞、保守筛选、联合资源与独立候选复核。
-- 第三层：`planning.py`，有限航路图、SIPP能耗标签、等待与优先级私有预约；`learning.py`定义各层可替换学习接口。
-- 公共能力：`pipeline.py` / `cli.py` / `storage.py`，结构化入口、演示回放、SQLite采纳事务。
+另一组可重复的协同/资源/在途演示：
 
-`PlanStore`支持显式采纳API，事务内重做复核、校验版本、同时保存计划与预约和采纳记录。CLI分析/演示不会自动采纳，不会覆盖现行任务。成功采纳与过期拒绝在临时数据库测试中验证；本轮没有真实调度计划被采纳。
+```bash
+.venv/bin/python scripts/demo_cooperation.py --case cooperation --output runs/demo-cooperation
+.venv/bin/python scripts/demo_cooperation.py --case inflight --output runs/demo-inflight
+```
 
-首次开发应读 [AGENTS.md](AGENTS.md)、[项目说明](docs/PROJECT_BRIEF.md)、[技术路线](docs/TECHNICAL_ROUTE.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md)、[功能清单](docs/FEATURE_MATRIX.md)、[数据契约](docs/DATA_CONTRACTS.md)和[首轮任务](docs/CODEX_FIRST_TASK.md)。`docs/source/`尚无明确最终版3.2，本轮依据工程整理版；原稿提供后需逐项核对。原始合成JSON保留，来源边界见 [示例说明](examples/README.md)。
+两个目录的`summary.json`分别汇总实际回溯、扩展、能量拒绝和前缀冻结结果，解释与实际检查见VALIDATION。
 
-## 当前限制与下一步
+## 学习训练、评估和实验推理
 
-AABB、竖直圆柱、胶囊体及分段线性轨迹可检查；圆柱保护体采用明确的保守径向/轴向外扩。不支持几何或未知尺寸返回未检查。航路搜索仅支持单一巡航高度、垂直起降、固定速度和线性能耗；动态施工占用为时间区间内固定外包络。候选在有限图/预算内搜索，无全局最优或完备性保证。
+现有模型版本 `synthetic-round2-001cfc579ce2`，目录分别为`/root/autodl-tmp/chengkong-models/round2/`与`/root/autodl-tmp/chengkong-data/round2/`。代码和小清单进入Git，权重和批量数据留在数据盘。
 
-多任务当前采用顺序预约与全量复核；同机多任务周转/补能尚无模型，返回未检查；有限回溯、修复集合扩展、选择性增量重算、精细吊臂运动和真实飞行动力学尚未实现。VLM/LLM未接入；XGBoost、GNN、学习排序、历史演化预测和分位数/共形校准均未训练。补证无可见确认时保持未知；决策价值估计与自动补证闭环待实现。下一阶段优先补齐协同修复与增量维护，再建立按完整事件隔离的仿真训练/校准数据，接入真实模型与前端。
+```bash
+.venv/bin/python -m pip install -r requirements-learning.txt
+.venv/bin/python -m chengkong.training benchmark --config configs/training-small.json
+.venv/bin/python -m chengkong.training train --config configs/training-small.json
+.venv/bin/python -m chengkong.training evaluate --config configs/training-small.json
+.venv/bin/chengkong analyze --model-dir /root/autodl-tmp/chengkong-models/round2 \
+  --learned --output runs/learned-v2.json
+```
 
-具体测试证据和本轮文件清单见 [VALIDATION](docs/VALIDATION.md)。
+已有模型可直接`evaluate`或加载，无需重训。`train`会重建配置指定目录的实验产物；新实验请复制配置并修改输出目录以保留本次结果。144个事件按48个完整模板分组，训练/验证/校准/测试隔离。每模型本次1组参数，训练器最多允许3组；单作业90秒超时，标签求解也有明确预算。下游模型本轮不用上游预测特征，无折内预测泄漏链。
+
+测试集上GNN排序不如包围盒规则，学习排序首选可行率与规则同为54.02%，首次可行实际代价略差。校准将单变量经验覆盖由62.96%变成100%，代价是平均区间扩大到346.82秒；只有9个独立校准模板，不能解释为现实飞行安全概率。所有学习建议不能绕过强制复核。
+
+## 多模态与受控材料更新
+
+仅从本项目`config/multimodal.local.json`读取显式服务配置；模板为`config/multimodal.example.json`。配置和专用环境变量`CHENGKONG_VLM_API_KEY`需要使用者自行提供，不自动扫描其他项目/用户目录，不自动加载`.env`。当前真实服务未配置。
+
+适配器向配置端点POST规范化`records/context/response_schema`，期待`chengkong-extraction-v1`结构化响应，包含候选事件与可定位证据引用。文本引文必须存在于可见材料；图像米制几何须有尺度、坐标原点、轴及高度基准。模型自报置信度不当作校准结果。无结果、超时、引用不成立或缺尺度时保留未知。具体协议和API见[数据契约](docs/DATA_CONTRACTS.md)。
+
+## 验证与工程位置
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m compileall -q src tests scripts
+.venv/bin/python -m pip check
+# 可选浏览器验收；此服务器的字体/本地库环境参数见VALIDATION。
+.venv/bin/python scripts/browser_smoke.py
+```
+
+浏览器验收脚本启动自己的随机loopback端口和临时数据库，退出时关闭；可选依赖`requirements-dev.txt`。它记录请求、结果与截图，使用真实后端而非固定响应。
+
+- 第一层：`contracts.py / world.py / evidence.py / multimodal.py`，有效/到达时间、事件重放、参数化占用、来源与受控写回。
+- 第二层：`geometry.py / analysis.py / verification.py / incremental.py / reference_geometry.py`，连续冲突、全量复核、保守增量依赖及独立数值参考。
+- 第三层：`planning.py / cooperation.py / resources.py / execution.py`，有限图SIPP、预算化重排回溯、动态修复集合、同机资源、在途仿真。
+- 公共与学习：`pipeline.py / storage.py / cli.py / web.py / static/`；`synthetic.py / training.py / model_runtime.py / learning.py`。
+
+关键输出是`chengkong-result-v2`：世界和约束版本、逐任务与联合资源分析、完整原计划复核、候选与条件、真实变更代价、预算/失败诊断、两类补证请求、模型状态及增量依赖。只有全部硬检查通过才标记`conditionally_feasible`；搜索失败、信息不足、预算耗尽和超时分别记录。
+
+## 适用边界与依据
+
+几何支持AABB、竖直圆柱与胶囊体，轨迹分段线性；运动占用由有效时间分段固定包络表示。航路仍为固定巡航高度、垂直起降和显式线性能耗，不是完整三维动力学。有限重排与SIPP无全局完备/最优保证。相同飞行器周转使用显式配置的地面运输、充电速率和周转时间；地面载运路径避障及载运车辆容量未建模，必须在条件中保留这一假设。周转驻留接受完整复核，但搜索器未提前纳入所有跨任务驻留，因此可能错过可行方案；等待区只复核显式轨迹，未自动生成地面搬运路线。空中等待需校验空间与能耗，地面等待需合法位置和容量。
+
+主规划和主复核不复用搜索器，但共享几何底层函数；独立凸距离参考及手算边界用于额外交叉检查，不是形式化安全证明。真实施工历史预测、精细吊臂运动、真实多模态服务、真实标注/校准数据和现实部署评估仍待完成。
+
+先读[AGENTS](AGENTS.md)、[项目说明](docs/PROJECT_BRIEF.md)、[技术路线](docs/TECHNICAL_ROUTE.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md)。`docs/source/`尚无标注最终版的3.2，不能声称已核对不存在的原稿。持续恢复位置见[PROGRESS](docs/PROGRESS.md)。

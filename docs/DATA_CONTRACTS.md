@@ -132,3 +132,44 @@
 `query_evidence(world,request,evidence_source=None,timeout_s=5)` 可读世界中已见记录，或显式提供 `{id,kind,records:[event,...]}` 的证据源。`kind` 只接受 `available_records` 或 `synthetic_evidence_source`。只释放 `observed_at_s<=world.as_of_s` 且有效时间已到达的完成记录。模拟源可用 `simulated_delay_s` 验证超时，字段明确标识为模拟延迟，函数不会伪装实际网络服务。冲突记录返回 `conflicting_evidence`，无记录、超时、超预算、到期均保留未知。请求有截止时间、单位成本、最大查询数、状态和冻结版本。
 
 解析到的有效记录返回 `status=resolved`、`proposed_event` 和来源引用，仍然 `world_updated=false`。调用 `apply_evidence_result(world,result)` 时再次核对版本、请求对象、答案与原始记录匹配，随后走 `apply_event`，才产生新环境版本与占用。补证失败是无状态变化操作。字段真实性依赖用户提供的材料；本地合成证据源验证的是软件闭环，不证明现实施工已结束。
+
+## 10. 第二轮结果、采纳与本地HTTP
+
+结果schema为`chengkong-result-v2`，保留v1核心字段，增加`baseline_full_review`、`incremental.dependencies/cache/invalidated_candidate_ids`、`learning_advice/learning_enabled`及在途模式。候选带`base_reservation_version`、修复集合与扩展历史、真实`stability_cost`和选择理由；其ID由内容、版本与分析时刻生成。学习启用和模型版本也参与身份，不与规则结果混用。
+
+`PlanStore`以SQLite `BEGIN IMMEDIATE`核对环境/各任务计划/预约/规则/模型/情景并在事务内重新生成约束复核。成功时同时提交当前world、计划版本、预约版本和历史；任何异常回滚全部写入。`state_revision`用于环境/时间写入的CAS，避免覆盖并发采纳后的计划。候选建议保存在proposals，不采纳就不替代现行任务；同ID不同内容拒绝。decisions保存当时完整输入/结果，后来证据不得回写旧行。
+
+本地HTTP仅loopback，默认端口8765，JSON body不超过1MiB，拒绝非有限数和非对象顶层。除GET外操作均为POST JSON，带`scenario`（默认end_unconfirmed）。Web是软件仿真，没有飞控接口。
+
+| 路径 | 输入与行为 |
+|---|---|
+| GET `/api/scenarios`、`/api/state?scenario=...` | 可用分支；当前可见world、真实分析、候选、审计与历史，不传隐藏未来事件 |
+| POST `/api/analyze` | `inflight`、`learned`布尔；按明确开关执行实际计算 |
+| POST `/api/advance` | `time_s`，只前进，按到达时刻释放对应仿真记录 |
+| POST `/api/event` | `event`，第一层校验、版本化写入、增量分析与维护 |
+| POST `/api/adopt` | `candidate_id`，显式采纳；失败返回review/version原因 |
+| POST `/api/evidence` | `request_id`，可选显式`source`；服务端持有预算，失败不改未知 |
+| POST `/api/material` | `records`，可选明确标注的`mock_response`；返回已校验待接受提议，不直接更新 |
+| POST `/api/material/apply` | `proposal_id`，核对版本后受控更新；证据引用随事件持久保存 |
+| GET `/api/replay?scenario=...&id=...` | 按历史记录的可见world重新检查，`read_only=true`；不修改live或原决策，当前实现不重新生成历史候选 |
+| GET `/health` | 服务状态及`flight_control_connected=false` |
+
+历史回放用保存的world和其规则/模型版本标识，按当前实现重做检查，不将后来证据注入。完整当时决策另外存储在decisions。数据库只适用于本地单实例原型，尚未实现多实例分布式会话与生产级认证。
+
+## 11. 多模态结构化协议
+
+仅项目内`config/multimodal.local.json`启用`structured_http`适配器，api_key_env限定`CHENGKONG_VLM_API_KEY`。POST服务载荷为`{records,context,response_schema:"chengkong-extraction-v1"}`，context包含当前时间、环境版本、情景、坐标与时间系统。响应必须为对象，结构示例：
+
+```json
+{"schema_version":"chengkong-extraction-v1","unknown_fields":[],"candidate_events":[{"event":{"id":"example_event","kind":"planned_end_changed","activity_id":"lifting_1","effective_at_s":60,"observed_at_s":60,"source_kind":"record_assertion","new_planned_end_s":700},"evidence_refs":[{"record_id":"material_1","locator":"text:0","quote":"计划结束调整为700秒"}]}]}
+```
+
+材料为`{id,kind,observed_at_s,text/image_ref/frame_ref,metric_reference?}`，kind为text/image/video_frame；引用必须定位已提供且当前可见的材料。图像带米制几何时，metric_reference要求`unit=m`、正`scale_m_per_pixel`、三维`coordinate_origin_m`、与world相符的`axes`和`height_datum`、可见`source_record_id`。该校验只检查依据存在与结构一致，不认证现实测量正确。
+
+受控接受时event保存`evidence_refs`和引用材料的小型原始记录，world事件/known_sources进入SQLite历史；无接受时只在会话中保留提议。超时/连接失败/无效JSON/错误引用/未知字段都不会转为有利几何。模拟响应标记explicit_mock和synthetic_mock，真实调用只在实际配置后发生，本轮未接入真实提供方。
+
+MaterialAgent还输出`evidence_requests/field_review/material_query_scope`。完成状态缺项复用两类统一请求，initiator=material_agent；HTTP材料流程按ID合并，不增加预算或延长期限。后续使用同一/api/evidence及第一层校验写回。无法定位对象时object_id=null并要求人工定位；任意高度/坐标证据适配器尚未接通，不能从unknown自行生成几何。
+
+同机累计余量以`baseline_joint_analysis.aircraft_transitions`及候选`review.joint_report.aircraft_transitions`为准；单任务task_metrics中的landing_energy_remaining是满容量起算的局部指标，不可当成同机累计余量。周转地面驻留会进入容量与连续空间分离复核，禁等起降点不能用于长时周转等待；地面运输途中避障与载运车辆容量不在此简化模型内。
+
+周转驻留的对象与独立参考报告分别位于joint_report.stationary_object_reports / stationary_reference_reports；在途复核只在这些字段呈现未来检查，complete_stationary_*保留完整历史检查，historical_conflicts单列已发生冲突。证据查询预算、待接受材料及缓存目前属于单进程会话；施工事件、现行world、预约、候选提案与完整决策记录在SQLite持久保存，尚无跨实例会话恢复。
