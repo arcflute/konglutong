@@ -93,8 +93,11 @@ class DependencyEngine:
             dependencies['candidate_constraints'][cid] = [c['id'] for c in constraints]
             for task_id in task_ids:
                 dependencies['task_candidates'].setdefault(task_id, []).append(cid)
-            if candidate.get('base_environment_version') != world['environment_version'] or any(
-                    candidate.get('base_plan_versions', {}).get(t['id']) != t['plan_version'] for t in world['tasks']):
+            if (candidate.get('base_environment_version') != world['environment_version']
+                    or (world.get('reservation_version') is not None and candidate.get('base_reservation_version') != world['reservation_version'])
+                    or any(candidate.get(key,world[key]) != world[key] for key in ('scenario_id','rule_version','model_version'))
+                    or any(
+                    candidate.get('base_plan_versions', {}).get(t['id']) != t['plan_version'] for t in world['tasks'])):
                 invalidated.append(cid)
         result = {'baseline_analysis': reports, 'joint_analysis': check_joint_tasks(world['tasks'], world),
                   'constraints': constraints, 'dependencies': dependencies,

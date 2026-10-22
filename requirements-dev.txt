@@ -1,0 +1,2 @@
+# Optional browser acceptance only; runtime remains standard-library Python.
+playwright==1.55.0

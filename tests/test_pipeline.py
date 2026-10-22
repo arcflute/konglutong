@@ -24,7 +24,7 @@ class PipelineTests(unittest.TestCase):
 
     def test_actual_end_to_end_has_reviewed_candidate_and_serializable_output(self):
         result = self.result
-        self.assertEqual(result["schema_version"], "chengkong-result-v1")
+        self.assertEqual(result["schema_version"], "chengkong-result-v2")
         self.assertEqual(result["data_kind"], "synthetic")
         self.assertFalse(result["is_real_case"])
         self.assertFalse(result["current_plan_mutated"])
