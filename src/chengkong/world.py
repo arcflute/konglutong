@@ -318,7 +318,7 @@ def generate_constraints(world: dict) -> list[dict]:
             'reason': reason, 'information_type': 'synthetic_record_and_rule',
             'observed_at_s': max(source['observed_at_s'] for source in world['known_sources'] if source['id'] in ids),
             'generated_as_of_s': world['as_of_s'], 'validity_horizon_s': list(world['horizon_s']),
-            'protection_semantics': 'Raw obstacle envelope; aircraft protection_radius_m applied once by checker.',
+            'protection_semantics': ('Declared component geometry, activity clearance and explicit position/phase-clock error bound; aircraft protection_radius_m applied once.' if 'motion' in extra else 'Raw obstacle envelope; aircraft protection_radius_m applied once by checker.'),
             **extra,
         })
 
@@ -348,7 +348,7 @@ def generate_constraints(world: dict) -> list[dict]:
                         append(cid, obj, 'physical', geometry, [begin, min(finish, until)],
                                'bounded crane motion; physical structure persists after completion', geometry_version=version,
                                motion={**descriptor, 'component':component, 'clearance_m':0.},
-                               planning_geometry_policy='conservative_full_motion_range',
+                               planning_geometry_policy='switchable_full_motion_range_or_bounded_time_windows',
                                detailed_check_policy='time_resolved_velocity_bound',
                                motion_status=descriptor['motion_status'])
                     continue
@@ -382,7 +382,7 @@ def generate_constraints(world: dict) -> list[dict]:
                                motion_status=descriptor['motion_status'], completion_status=activity['completion_status'],
                                planned_interval_s=list(activity['planned_interval_s']),end_is_confirmed=confirmed,
                                calibrated=False,geometry_version=version, operational_status=obj.get('operational_status','active_or_planned'),
-                               planning_geometry_policy='conservative_full_motion_range',
+                               planning_geometry_policy='switchable_full_motion_range_or_bounded_time_windows',
                                detailed_check_policy='time_resolved_velocity_bound')
                     dynamic_parts.append((lo,hi))
                 else:

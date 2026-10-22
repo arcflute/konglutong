@@ -181,7 +181,7 @@ def verify_candidate(candidate, world, constraints):
     report['reference_reports']=[]
     report['geometry_independence']={'primary':'analysis shares analytic occupancy primitives with SIPP',
         'additional_reference':'separate convex-distance minimization for static solids and coupled-time Lipschitz subdivision for crane motion; no planner geometry imports',
-        'shared_motion_inputs':'kinematic rule poses and declared speed limits; independent collision bounds, not independent physical measurements',
+        'shared_motion_inputs':'kinematic rule poses, declared speed and position/phase-clock uncertainty bounds; independent collision bounds, not independent physical measurements',
         'limitation':'floating-point numerical reference, not formal exact-arithmetic proof'}
     expected = {"base_environment_version":world.get("environment_version"),
                 "base_plan_versions":{task["id"]:task["plan_version"] for task in world["tasks"]},
@@ -210,7 +210,7 @@ def verify_candidate(candidate, world, constraints):
         constraints = authoritative
         report["constraint_source"] = "regenerated_from_current_world_all_objects"
         if any('motion' in c for c in constraints):
-            report['conditions'].append('Crane motion follows declared bounded kinematic rules; time-cell speed inflation may create conservative false positives. SIPP uses full motion envelopes and can miss feasible time-dependent routes.')
+            report['conditions'].append('Crane motion follows declared bounded kinematic rules; time-cell speed inflation may create conservative false positives. SIPP mode is explicitly selected; full envelopes or conservative time windows can miss feasible routes, and neither bypasses this independent review.')
             report['motion_check_scope']='same-time three-dimensional moving solids and aircraft; no flight or crane controller connection'
     except (KeyError,TypeError,ValueError) as exc:
         report["unchecked"].append({"reason":"world_constraint_regeneration_failed","detail":str(exc)})

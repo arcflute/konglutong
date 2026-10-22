@@ -1,0 +1,317 @@
+{
+  "schema_version": "startup-example-v1",
+  "data_kind": "synthetic",
+  "is_real_case": false,
+  "description": "明确合成且可核算的时变吊装通行窗口：吊索在y=60横截航路，20秒后回转；无真实数据。",
+  "coordinate_system": {
+    "type": "local_cartesian",
+    "unit": "m",
+    "axes": [
+      "x_east",
+      "y_north",
+      "z_up"
+    ],
+    "origin": "fictional_flat_park",
+    "height_datum": "local_flat_ground_z0",
+    "georeferenced": false
+  },
+  "time_system": {
+    "type": "relative_simulation_seconds",
+    "origin_label": "synthetic_t0",
+    "interval_convention": "[start,end)"
+  },
+  "observed_snapshot": {
+    "as_of_s": 0,
+    "environment_version": 1,
+    "known_sources": [
+      {
+        "id": "record_initial",
+        "kind": "synthetic_record",
+        "observed_at_s": 0
+      }
+    ],
+    "bounds_m": {
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        100,
+        100,
+        30
+      ]
+    },
+    "buildings": [],
+    "pads": [
+      {
+        "id": "pad_start",
+        "position_m": [
+          10,
+          60,
+          0
+        ],
+        "capacity": 1,
+        "ground_wait_allowed": true
+      },
+      {
+        "id": "pad_finish",
+        "position_m": [
+          90,
+          60,
+          0
+        ],
+        "capacity": 1,
+        "ground_wait_allowed": true
+      }
+    ],
+    "facilities": [
+      {
+        "id": "crane_1",
+        "type": "tower_crane",
+        "source_id": "record_initial",
+        "installed": true,
+        "removal_confirmed": false,
+        "physical_geometry": [
+          {
+            "type": "vertical_cylinder",
+            "center_xy_m": [
+              50,
+              50
+            ],
+            "radius_m": 1,
+            "z_min_m": 0,
+            "z_max_m": 20
+          }
+        ],
+        "physical_geometry_status": "synthetic_fixed_envelope_for_initial_implementation",
+        "motion_model": {
+          "schema_version": "crane-motion-v1",
+          "kind": "tower_crane",
+          "activity_id": "lifting_1",
+          "source_ids": [
+            "record_initial"
+          ],
+          "base_m": [
+            50,
+            50,
+            0
+          ],
+          "tower_height_m": 20,
+          "tower_radius_m": 1,
+          "boom_length_m": 15,
+          "boom_radius_m": 0.2,
+          "trolley_radius_m": 10,
+          "rope_radius_m": 0.1,
+          "load_radius_m": 0.5,
+          "angle_range_deg": [
+            0,
+            90
+          ],
+          "load_z_range_m": [
+            5,
+            18
+          ],
+          "max_slew_deg_per_s": 4.5,
+          "max_hoist_mps": 1,
+          "initial_pose": {
+            "angle_deg": 90.0,
+            "load_z_m": 5.0
+          },
+          "parking_pose": {
+            "angle_deg": 0.0,
+            "load_z_m": 5.0
+          },
+          "program": [
+            {
+              "interval_s": [
+                0,
+                20
+              ],
+              "start_pose": {
+                "angle_deg": 90.0,
+                "load_z_m": 5.0
+              },
+              "end_pose": {
+                "angle_deg": 90.0,
+                "load_z_m": 5.0
+              }
+            },
+            {
+              "interval_s": [
+                20,
+                40
+              ],
+              "start_pose": {
+                "angle_deg": 90.0,
+                "load_z_m": 5.0
+              },
+              "end_pose": {
+                "angle_deg": 0.0,
+                "load_z_m": 5.0
+              }
+            }
+          ],
+          "outside_program_policy": "hold_last_pose",
+          "activity_policy": "moving_components_with_clearance",
+          "activity_clearance_m": 0.2,
+          "max_time_step_s": 1,
+          "max_cell_inflation_m": 0.25,
+          "uncertainty_bounds": {
+            "position_m": 0.0,
+            "clock_s": 0.0,
+            "source_ids": [
+              "record_initial"
+            ]
+          }
+        }
+      }
+    ],
+    "activities": [
+      {
+        "id": "lifting_1",
+        "facility_id": "crane_1",
+        "source_id": "record_initial",
+        "planned_interval_s": [
+          0,
+          80
+        ],
+        "completion_status": "not_confirmed",
+        "completion_confirmed_at_s": null,
+        "activity_envelope": {
+          "type": "aabb",
+          "min_m": [
+            34,
+            34,
+            0
+          ],
+          "max_m": [
+            66,
+            66,
+            22
+          ]
+        },
+        "geometry_status": "synthetic_conservative_activity_envelope",
+        "end_time_uncertainty": {
+          "kind": "scenario_based",
+          "calibrated": false,
+          "distribution": null
+        }
+      }
+    ],
+    "tasks": [
+      {
+        "id": "task_window",
+        "aircraft_id": "uav_1",
+        "plan_version": 1,
+        "priority": 1,
+        "departure_time_s": 2,
+        "deadline_s": 60,
+        "launch_pad_id": "pad_start",
+        "landing_pad_id": "pad_finish",
+        "mandatory_services": [
+          {
+            "id": "service_window",
+            "position_m": [
+              80,
+              60,
+              10
+            ],
+            "duration_s": 2,
+            "position_tolerance_m": 0.05,
+            "window_s": [
+              2,
+              50
+            ]
+          }
+        ],
+        "trajectory": [
+          {
+            "time_s": 2,
+            "position_m": [
+              10,
+              60,
+              0
+            ]
+          },
+          {
+            "time_s": 7,
+            "position_m": [
+              10,
+              60,
+              10
+            ]
+          },
+          {
+            "time_s": 14,
+            "position_m": [
+              80,
+              60,
+              10
+            ]
+          },
+          {
+            "time_s": 16,
+            "position_m": [
+              80,
+              60,
+              10
+            ]
+          },
+          {
+            "time_s": 17,
+            "position_m": [
+              90,
+              60,
+              10
+            ]
+          },
+          {
+            "time_s": 22,
+            "position_m": [
+              90,
+              60,
+              0
+            ]
+          }
+        ],
+        "nominal_horizontal_speed_mps": 10,
+        "nominal_vertical_speed_mps": 2,
+        "protection_radius_m": 0.3,
+        "energy_assumptions": {
+          "unit": "synthetic_energy_unit",
+          "capacity": 30,
+          "airborne_cost_per_s": 1,
+          "ground_wait_cost_per_s": 0.02,
+          "required_landing_reserve": 2,
+          "status": "synthetic_simplified_model"
+        }
+      }
+    ],
+    "scene_relations": [],
+    "planning_policy": {
+      "mode": "dynamic_windows",
+      "max_time_step_s": 1.0,
+      "max_cell_inflation_m": 0.25,
+      "max_cells": 30000
+    }
+  },
+  "scenario_definitions_for_simulator_only": [
+    {
+      "id": "dynamic_window",
+      "probability": null,
+      "events": []
+    }
+  ],
+  "evaluation_horizon_s": [
+    0,
+    120
+  ],
+  "decision_visibility_rule": "在线分析器接收坐标/时间等公共元数据、observed_snapshot（含当前时刻、版本与来源）及当前观测时刻已释放的事件；不得读取 scenario_definitions_for_simulator_only 中尚未释放的事件。允许以显式假设分别离线推演情景，但不能把情景分支当成已知事实。",
+  "planned_check_points": [],
+  "limitations": [
+    "固定幅度回转和直线升降，不含吊物复杂摆动；显式零误差仅为合成可核算规则，不代表真实设备。",
+    "仍有持续物理占用和来源不确定时的全范围回退；有限时间管与有限图不保证最优或完备。"
+  ],
+  "ground_resource_scope": "起降点容量约束起飞、降落及明确选择在该点的地面等待。本输入不声明任务开始前所有飞机已位于起降点；延后方案应明确起飞前待命位置及进入起降点的安排，或在该点预约等待并处理共享容量，不得假定共享资源无限。"
+}

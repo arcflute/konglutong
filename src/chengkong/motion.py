@@ -87,7 +87,25 @@ def validate_motion(model):
     inflation = number(model.get('max_cell_inflation_m', 0.5), 'max_cell_inflation_m', minimum=1e-5)
     if step > 5 or inflation > 5:
         raise ContractError('motion numerical limits: step <= 5 s and cell inflation <= 5 m')
+    uncertainty = model.get('uncertainty_bounds')
+    if uncertainty is not None:
+        mapping(uncertainty, 'motion.uncertainty_bounds')
+        number(uncertainty.get('position_m'), 'motion.uncertainty.position_m', minimum=0)
+        number(uncertainty.get('clock_s'), 'motion.uncertainty.clock_s', minimum=0)
+        refs = sequence(uncertainty.get('source_ids'), 'motion.uncertainty.source_ids')
+        if not refs or any(ref not in model['source_ids'] for ref in refs):
+            raise ContractError('uncertainty bounds require declared motion parameter sources')
     return 'supported'
+
+
+def uncertainty_margin(descriptor):
+    """Declared position error plus speed times equipment phase-clock error.
+
+    Missing bounds retain the legacy exact-rule conditional checker. Dynamic
+    planning separately refuses to exploit narrow windows without explicit bounds.
+    """
+    bounds = descriptor['model'].get('uncertainty_bounds') or {}
+    return bounds.get('position_m', 0.) + component_speed(descriptor)*bounds.get('clock_s', 0.)
 
 
 def _program_pose(model, clock):
@@ -176,6 +194,7 @@ def component_speed(descriptor):
 
 def component_envelope(model, component, clearance=0.):
     """Conservative broad phase for any declared pose, including parking."""
+    clearance += uncertainty_margin({'model':model,'component':component})
     x, y, z = model['base_m']; top = z+model['tower_height_m']
     if component == 'tower':
         return {'type':'vertical_cylinder', 'center_xy_m':[x,y], 'radius_m':model['tower_radius_m']+clearance,
@@ -201,7 +220,8 @@ def geometry_at(descriptor, at_s):
     if component == 'tower':
         return component_envelope(model, component, clearance)
     pose = pose_at(descriptor, at_s)
-    if pose is None:
+    clock_error = (model.get('uncertainty_bounds') or {}).get('clock_s', 0.)
+    if pose is None or any(pose_at(descriptor, at_s+offset) is None for offset in (-clock_error, clock_error)):
         return component_envelope(model, component, clearance)
     x, y, z = model['base_m']; pivot = [x,y,z+model['tower_height_m']]
     theta = math.radians(pose['angle_deg']); c, s = math.cos(theta), math.sin(theta)
@@ -210,7 +230,7 @@ def geometry_at(descriptor, at_s):
     load = [trolley[0],trolley[1],pose['load_z_m']]
     a, b, radius = {'boom':(pivot,tip,model['boom_radius_m']), 'rope':(trolley,load,model['rope_radius_m']),
                     'load':(load,load,model['load_radius_m'])}[component]
-    return {'type':'capsule','start_m':a,'end_m':b,'radius_m':radius+clearance}
+    return {'type':'capsule','start_m':a,'end_m':b,'radius_m':radius+clearance+uncertainty_margin(descriptor)}
 
 
 def motion_breakpoints(descriptor, low, high):
@@ -227,6 +247,8 @@ def motion_breakpoints(descriptor, low, high):
     # Include original and shifted boundaries conservatively; extra cuts are harmless.
     for row in model['program']:
         points.update(at+delta for at in row['interval_s'] for delta in shifts)
+    clock_error = (model.get('uncertainty_bounds') or {}).get('clock_s', 0.)
+    points.update(at+offset for at in list(points) for offset in (-clock_error,clock_error))
     return sorted(at for at in points if low <= at <= high)
 
 

@@ -124,11 +124,15 @@ def build_route_graph(task,world,constraints,allow_detour=True):
     return {'status':'ready','nodes':nodes,'edges':edges,'start':nodes.index(start),'goal':nodes.index(goal)}
 
 
-def _safe_intervals(p,task,world,constraints,reservations):
+def _safe_intervals(p,task,world,constraints,reservations,windows=None):
     start,end=world['horizon_s'];blocked=[];r=task['protection_radius_m']
-    for c in constraints:
-        if segment_occupancy(p,p,c['geometry'],r):blocked.append(c['interval_s'])
+    if windows is not None:
+        blocked.extend(windows.blocked_node(p))
+    else:
+        for c in constraints:
+            if segment_occupancy(p,p,c['geometry'],r):blocked.append(c['interval_s'])
     # Dynamic reservations at this node; sphere intersection is an analytic quadratic.
+    pad_rows=[]
     for other in reservations:
         rr=r+other['protection_radius_m']
         for a,b in zip(other['trajectory'],other['trajectory'][1:]):
@@ -145,7 +149,12 @@ def _safe_intervals(p,task,world,constraints,reservations):
                         d=b['time_s']-a['time_s'];blocked.append([a['time_s']+lo*d,a['time_s']+hi*d+EPS])
         if p[2]==0:
             pad=task['launch_pad_id'] if list(p)==task['trajectory'][0]['position_m'] else task['landing_pad_id']
-            blocked.extend([[lo,hi] for pid,lo,hi in _pad_intervals(other) if pid==pad])
+            pad_rows.extend((other['id'],lo,hi) for pid,lo,hi in _pad_intervals(other) if pid==pad)
+    if p[2]==0 and pad_rows:
+        capacity=next((r['capacity'] for r in world['pads'] if r['id']==pad),1)
+        times=sorted({v for _,lo,hi in pad_rows for v in (lo,hi)})
+        blocked.extend([lo,hi] for lo,hi in zip(times,times[1:])
+                       if len({tid for tid,a,b in pad_rows if a<=lo<b})>=capacity)
     result=[];cursor=start
     for lo,hi in _merge(blocked):
         lo=max(start,lo);hi=min(end,hi)
@@ -160,19 +169,34 @@ def search_task(task,world,constraints,reservations=(),allow_detour=True,max_exp
     try:
         for constraint in constraints:
             _geometry_bounds(constraint['geometry'])
-        result = _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s, None if timeout_s is None else time.monotonic()+max(0.,timeout_s))
-        if any('motion' in c for c in constraints):
+        from .temporal_windows import TemporalWindows, policy
+        config=policy(world)
+        deadline=None if timeout_s is None else time.monotonic()+max(0.,timeout_s)
+        windows=TemporalWindows(task,world,constraints,reservations,deadline) if config['mode']=='dynamic_windows' else None
+        result = _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s,deadline,windows)
+        result['planning_mode']=config['mode']
+        if windows is not None:
+            if result.get('task'):
+                result['planning_explanation']=windows.explain_path(result['task'],world)
+            result['temporal_windows']=windows.describe()
+        if any('motion' in c for c in constraints) and windows is None:
             result['motion_search_policy']='conservative_full_motion_envelope; final review uses time-resolved checks'
             result['motion_search_limitation']='can miss routes that are feasible only between moving equipment poses'
         return result
+    except TimeoutError as exc:
+        return {'status':'search_timeout','reason':str(exc),'phase':'temporal_windows'}
+    except RuntimeError as exc:
+        from .temporal_windows import WindowBudgetExceeded
+        if not isinstance(exc,WindowBudgetExceeded):raise
+        return {'status':'search_budget_exhausted','budget_dimension':'temporal_window_cells','reason':str(exc)}
     except (UnsupportedGeometry,TypeError,KeyError,ValueError) as exc:
         return {'status':'unsupported_or_incomplete_search_input','reason':str(exc)}
 
 
-def _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s,deadline):
+def _search_task(task,world,constraints,reservations,allow_detour,max_expansions,start_after_s,deadline,windows=None):
     graph=build_route_graph(task,world,constraints,allow_detour)
     if graph['status']!='ready':return {'status':graph['status']}
-    nodes=graph['nodes'];safe=[_safe_intervals(p,task,world,constraints,reservations) for p in nodes]
+    nodes=graph['nodes'];safe=[_safe_intervals(p,task,world,constraints,reservations,windows) for p in nodes]
     start_time=task['departure_time_s'];end_limit=min(task['deadline_s'],world['horizon_s'][1])
     if start_time<world['as_of_s']:return {'status':'task_already_started'}
     si=next((i for i,(lo,hi) in enumerate(safe[graph['start']]) if lo<=start_time<hi),None)
@@ -189,6 +213,22 @@ def _search_task(task,world,constraints,reservations,allow_detour,max_expansions
     if search_start>start_time and nodes[graph['start']][2]==0 and not next((p.get('ground_wait_allowed',False) for p in world['pads'] if p['id']==task['launch_pad_id']),False):return {'status':'ground_wait_location_unavailable'}
     if initial_used>capacity:return {'status':'ground_wait_energy_exceeded'}
     heapq.heappush(queue,(search_start,next(counter),graph['start'],si,0,initial_used,initial_path))
+    # A later launch may conserve energy compared with hovering at a cruise
+    # node. Seed finite additional launch boundaries from the original route;
+    # arbitrary future evidence or deadline extensions are never introduced.
+    if windows is not None and nodes[graph['start']][2]==0 and next((p.get('ground_wait_allowed',False) for p in world['pads'] if p['id']==task['launch_pad_id']),False):
+        departures=set()
+        for a,b in zip(task['trajectory'],task['trajectory'][1:]):
+            duration=b['time_s']-a['time_s']; offset=a['time_s']-start_time
+            for _,end in windows.forbidden_departures(a['position_m'],b['position_m'],duration):
+                departure=end-offset+EPS
+                if search_start+EPS<departure<min(safe[graph['start']][si][1],end_limit):departures.add(departure)
+        for departure in sorted(departures)[:64]:
+            cost=(departure-start_time)*energy['ground_wait_cost_per_s']
+            if cost<=capacity+EPS:
+                path=[{'time_s':start_time,'position_m':list(nodes[graph['start']])},
+                      {'time_s':departure,'position_m':list(nodes[graph['start']])}]
+                heapq.heappush(queue,(departure,next(counter),graph['start'],si,0,cost,path))
     while queue:
         if deadline is not None and time.monotonic()>=deadline:return {'status':'search_timeout','expansions':expansions}
         at,_,node,interval,progress,used,path=heapq.heappop(queue)
@@ -217,11 +257,12 @@ def _search_task(task,world,constraints,reservations,allow_detour,max_expansions
         for target,duration in graph['edges'][node]:
             q=nodes[target]
             if target==graph['goal'] and progress<len(services):continue
-            forbidden=[]
-            for c in constraints:
-                for u0,u1 in segment_occupancy(p,q,c['geometry'],task['protection_radius_m']):
-                    forbidden.append((c['interval_s'][0]-u1*duration-EPS,c['interval_s'][1]-u0*duration))
-            forbidden=_merge(forbidden)
+            forbidden=windows.forbidden_departures(p,q,duration) if windows is not None else []
+            if windows is None:
+                for c in constraints:
+                    for u0,u1 in segment_occupancy(p,q,c['geometry'],task['protection_radius_m']):
+                        forbidden.append((c['interval_s'][0]-u1*duration-EPS,c['interval_s'][1]-u0*duration))
+                forbidden=_merge(forbidden)
             for target_interval,(lo,hi) in enumerate(safe[target]):
                 depart=max(at,lo-duration);tries=0
                 while depart+duration<min(hi,end_limit+EPS) and depart<safe_end:
