@@ -30,7 +30,7 @@ class SimulationApp:
         if not Path(example).is_file():raise ValueError('recovery_input_missing: supply the original input file or an exact copy')
         self.raw=load_example(example)
         self.db_dir=Path(db_dir);self.db_dir.mkdir(parents=True,exist_ok=True)
-        self.root=Path(project_root or Path(example).resolve().parent.parent)
+        self.root=Path(project_root or Path(__file__).resolve().parents[2])
         self.lock=threading.RLock();self.sessions={}
         self.initial_policy=copy.deepcopy(initial_policy)
         if initial_policy is not None:
@@ -346,68 +346,122 @@ class SimulationApp:
             return operation_timeline(session['result'],candidate_id)
 
 
-def make_server(app,host='127.0.0.1',port=8765):
+def make_server(app,host='127.0.0.1',port=8765,*,demo_identities=False,frontend_dir=None):
     if host not in ('127.0.0.1','localhost','::1'):raise ValueError('only_loopback_listening_is_supported')
-    static=Path(__file__).with_name('static')
+    from .portal import PortalService,AccessError
+    portal=PortalService(app,demo_identities)
+    static=Path(frontend_dir or Path(__file__).resolve().parents[2]/'frontend/dist').resolve()
+    pages={'/','/gov/overview','/gov/changes','/gov/assessment','/gov/history','/gov/reports',
+           '/biz/overview','/biz/evidence','/biz/tasks','/biz/analysis','/biz/maintenance','/biz/history',
+           '/personal/explore','/personal/preflight','/personal/following','/personal/records'}
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):pass
-        def _json(self,value,status=200):
-            data=json.dumps(value,ensure_ascii=False,allow_nan=False).encode()
-            self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8')
-            self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
+        def _send(self,data,content_type,status=200,cookie=None):
+            self.send_response(status);self.send_header('Content-Type',content_type)
+            self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(data)))
+            self.send_header('X-Content-Type-Options','nosniff');self.send_header('X-Frame-Options','DENY')
+            self.send_header('Referrer-Policy','same-origin')
+            if cookie:self.send_header('Set-Cookie',cookie)
+            self.end_headers();self.wfile.write(data)
+        def _json(self,value,status=200,cookie=None):
+            self._send(json.dumps(value,ensure_ascii=False,allow_nan=False).encode(),'application/json; charset=utf-8',status,cookie)
         def _origin_ok(self):
+            # Block DNS rebinding as well as cross-origin browser writes.
+            host_name=urllib.parse.urlparse('http://'+self.headers.get('Host','')).hostname
+            if host_name not in ('localhost','127.0.0.1','::1'):return False
             origin=self.headers.get('Origin')
             if not origin:return True
             parsed=urllib.parse.urlparse(origin)
             return parsed.netloc==self.headers.get('Host') and parsed.scheme=='http'
+        def _subject(self):return portal.subject(self.headers.get('Cookie'))
         def do_GET(self):
             try:
-                parsed=urllib.parse.urlparse(self.path);query=urllib.parse.parse_qs(parsed.query)
-                scenario=query.get('scenario',['end_unconfirmed'])[0]
-                if parsed.path=='/api/scenarios':return self._json({'scenarios':list(app.scenarios),'active_scenario':app.active_scenario,'data_kind':'synthetic'})
-                if parsed.path=='/api/state':return self._json(app.state(scenario))
-                if parsed.path=='/api/replay':return self._json(app.replay(scenario,int(query['id'][0])))
-                if parsed.path=='/api/view':return self._json(app.view(scenario,float(query['time_s'][0]) if 'time_s' in query else None))
-                if parsed.path=='/api/operations':return self._json(app.operation_timeline(scenario,query.get('candidate_id',[None])[0]))
-                if parsed.path=='/api/export':return self._json(app.export(scenario))
-                if parsed.path=='/api/template':return self._json(app.template())
-                if parsed.path=='/health':return self._json({'status':'ok','flight_control_connected':False})
-                filename={'/':'index.html','/app.js':'app.js','/round3.js':'round3.js','/round4.js':'round4.js','/style.css':'style.css'}.get(parsed.path)
-                if filename is None:return self._json({'status':'not_found'},404)
-                data=(static/filename).read_bytes()
-                self.send_response(200);self.send_header('Content-Type',(mimetypes.guess_type(filename)[0] or 'text/plain')+'; charset=utf-8')
-                self.send_header('Content-Length',str(len(data)));self.send_header('X-Content-Type-Options','nosniff');self.end_headers();self.wfile.write(data)
+                if not self._origin_ok():return self._json({'status':'cross_origin_rejected'},403)
+                parsed=urllib.parse.urlparse(self.path);query=urllib.parse.parse_qs(parsed.query);path=parsed.path
+                scenario=query.get('scenario',['end_unconfirmed' if 'end_unconfirmed' in app.scenarios else next(iter(app.scenarios))])[0]
+                if path=='/health':return self._json({'status':'ok','flight_control_connected':False})
+                if path.startswith('/api/'):
+                    subject=self._subject()
+                    if path=='/api/session':return self._json(portal.session(subject))
+                    portal.authorize(subject)
+                    if path=='/api/portal/scenarios':return self._json(portal.scenarios(subject))
+                    if path=='/api/portal/context':return self._json(portal.context(subject,scenario))
+                    if path=='/api/portal/replay':return self._json(portal.replay(subject,scenario,int(query['id'][0])))
+                    if path=='/api/gov/notes':
+                        portal.authorize(subject,scenario,('gov',));return self._json(portal.notes(scenario))
+                    if path=='/api/personal/records':return self._json(portal.personal_records(subject))
+                    if path=='/api/reports':return self._json(portal.reports(subject,scenario))
+                    if path=='/api/report':
+                        report=portal.report(subject,query['id'][0])
+                        if query.get('format')==['html']:return self._send(portal.report_html(report).encode(),'text/html; charset=utf-8')
+                        return self._json(report)
+                    portal.authorize(subject,scenario,('biz',))
+                    if path=='/api/scenarios':return self._json({'scenarios':[r['id'] for r in portal.scenarios(subject)['scenarios']],'active_scenario':app.active_scenario,'data_kind':'synthetic'})
+                    if path=='/api/state':return self._json(app.state(scenario))
+                    if path=='/api/replay':return self._json(app.replay(scenario,int(query['id'][0])))
+                    if path=='/api/view':return self._json(app.view(scenario,float(query['time_s'][0]) if 'time_s' in query else None))
+                    if path=='/api/operations':return self._json(app.operation_timeline(scenario,query.get('candidate_id',[None])[0]))
+                    if path=='/api/export':return self._json(app.export(scenario))
+                    if path=='/api/template':return self._json(app.template())
+                    return self._json({'status':'not_found'},404)
+                if path in pages:
+                    filename=static/'index.html'
+                    if not filename.is_file():return self._json({'status':'frontend_build_required','command':'cd frontend && npm ci && npm run build'},503)
+                elif path.startswith(('/assets/','/cesium/')):
+                    filename=(static/urllib.parse.unquote(path).lstrip('/')).resolve()
+                    if not filename.is_relative_to(static) or not filename.is_file():return self._json({'status':'not_found'},404)
+                elif path=='/favicon.ico':return self._send(b'','image/x-icon',204)
+                else:return self._json({'status':'not_found'},404)
+                return self._send(filename.read_bytes(),mimetypes.guess_type(filename)[0] or 'application/octet-stream')
+            except AccessError as exc:self._json({'status':'access_denied','reason':str(exc)},exc.status)
             except (ValueError,KeyError,TypeError,OSError) as exc:self._json({'status':'request_rejected','reason':str(exc)},400)
         def do_POST(self):
             try:
                 if not self._origin_ok():return self._json({'status':'cross_origin_rejected'},403)
+                if self.headers.get('X-KLT-Request')!='1':return self._json({'status':'request_header_required'},403)
                 length=int(self.headers.get('Content-Length','0'))
                 if length<1 or length>1_048_576:return self._json({'status':'invalid_body_length'},413)
                 body=json.loads(self.rfile.read(length),parse_constant=lambda x:(_ for _ in ()).throw(ValueError('nonfinite_json')))
                 if not isinstance(body,dict):raise ValueError('json_body_must_be_object')
-                scenario=body.get('scenario','end_unconfirmed')
+                if self.path=='/api/session/demo':
+                    value,cookie=portal.login(body.get('identity'),self.headers.get('Cookie'));return self._json(value,cookie=cookie)
+                if self.path=='/api/session/logout':
+                    portal.logout(self.headers.get('Cookie'));return self._json({'status':'signed_out'},cookie='klt_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
+                subject=self._subject();portal.authorize(subject)
+                scenario=body.get('scenario','end_unconfirmed' if 'end_unconfirmed' in app.scenarios else next(iter(app.scenarios)))
+                if self.path=='/api/gov/notes':return self._json(portal.add_note(subject,body))
+                if self.path.startswith('/api/personal/'):
+                    return self._json(portal.personal_action(subject,self.path.rsplit('/',1)[-1],body))
+                if self.path=='/api/reports':return self._json(portal.create_report(subject,body))
+                portal.authorize(subject,scenario,('biz',))
                 if self.path=='/api/analyze':
                     with app.lock:
                         session=app._session(scenario);session['learned']=body.get('learned') is True;session['inflight']=body.get('inflight') is True
-                    return self._json(app.state(scenario,True))
-                if self.path=='/api/advance':return self._json(app.advance(scenario,float(body['time_s'])))
-                if self.path=='/api/event':return self._json(app.event(scenario,body['event']))
-                if self.path=='/api/adopt':return self._json(app.adopt(scenario,body['candidate_id']))
-                if self.path=='/api/evidence':return self._json(app.evidence(scenario,body['request_id'],body.get('source')))
-                if self.path=='/api/material':return self._json(app.material(scenario,body['records'],body.get('mock_response')))
-                if self.path=='/api/material/apply':return self._json(app.accept_material(scenario,body['proposal_id']))
-                if self.path=='/api/compare':return self._json(app.compare(scenario))
-                if self.path=='/api/policy':return self._json(app.policy(scenario,body['mode'],body['action_policy']))
-                if self.path=='/api/field/query':return self._json(app.field_query(scenario,body.get('object_id'),body.get('field'),body.get('request_id'),body.get('content'),body.get('format','json'),body.get('metadata')))
-                if self.path=='/api/import':return self._json(app.import_material(scenario,body['content'],body.get('format','json'),body.get('metadata')))
-                if self.path=='/api/import/apply':return self._json(app.accept_import(scenario,body['proposal_id'],body.get('resolutions')))
-                return self._json({'status':'not_found'},404)
+                    value=app.state(scenario,True)
+                elif self.path=='/api/advance':value=app.advance(scenario,float(body['time_s']))
+                elif self.path=='/api/event':value=app.event(scenario,body['event'])
+                elif self.path=='/api/adopt':value=app.adopt(scenario,body['candidate_id'])
+                elif self.path=='/api/evidence':value=app.evidence(scenario,body['request_id'],body.get('source'))
+                elif self.path=='/api/material':value=app.material(scenario,body['records'],body.get('mock_response'))
+                elif self.path=='/api/material/apply':value=app.accept_material(scenario,body['proposal_id'])
+                elif self.path=='/api/compare':value=app.compare(scenario)
+                elif self.path=='/api/policy':value=app.policy(scenario,body['mode'],body['action_policy'])
+                elif self.path=='/api/field/query':value=app.field_query(scenario,body.get('object_id'),body.get('field'),body.get('request_id'),body.get('content'),body.get('format','json'),body.get('metadata'))
+                elif self.path=='/api/import':value=app.import_material(scenario,body['content'],body.get('format','json'),body.get('metadata'))
+                elif self.path=='/api/import/apply':value=app.accept_import(scenario,body['proposal_id'],body.get('resolutions'))
+                else:return self._json({'status':'not_found'},404)
+                # Only pre-published objects are projected; private material text
+                # is never copied. Notification delivery does not change world.
+                portal.public_projection(scenario)
+                return self._json(value)
+            except AccessError as exc:self._json({'status':'access_denied','reason':str(exc)},exc.status)
             except (ValueError,KeyError,TypeError,OSError) as exc:self._json({'status':'request_rejected','reason':str(exc)},400)
     class SimulationServer(ThreadingHTTPServer):
         def server_close(self):
             try:super().server_close()
             finally:app.close()
-    return SimulationServer((host,port),Handler)
+    server=SimulationServer((host,port),Handler);server.portal=portal
+    return server
 
 
 def main(argv=None):
@@ -416,6 +470,7 @@ def main(argv=None):
     parser.add_argument('--host',default='127.0.0.1');parser.add_argument('--port',type=int,default=8765)
     parser.add_argument('--db-dir',default='runs/web')
     parser.add_argument('--model-dir',default=None)
+    parser.add_argument('--demo-identities',action='store_true',help='Explicitly enable local demo identities; no production identity provider')
     parser.add_argument('--planning-mode',choices=['conservative','dynamic_windows'])
     parser.add_argument('--action-policy',choices=['legacy','keep_detour'])
     args=parser.parse_args(argv)
@@ -423,8 +478,8 @@ def main(argv=None):
     if args.planning_mode:policy['mode']=args.planning_mode
     if args.action_policy:policy['action_order']=['retain','detour','delay'] if args.action_policy=='keep_detour' else ['retain','delay','detour']
     app=SimulationApp(args.input,args.db_dir,args.model_dir,initial_policy=policy or None)
-    server=make_server(app,args.host,args.port)
-    print(f'城空智护 local: http://{args.host}:{server.server_port}  synthetic simulation only',flush=True)
+    server=make_server(app,args.host,args.port,demo_identities=args.demo_identities)
+    print(f'空路通 local: http://{args.host}:{server.server_port}  synthetic simulation only',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass
     finally:server.server_close()

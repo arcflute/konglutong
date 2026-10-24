@@ -121,12 +121,12 @@ class RecoveryTests(unittest.TestCase):
         foreign=self.app(example=other_input,db_dir=self.root/'foreign')
         foreign.state(self.scenario);foreign.close()
         shutil.copy2(self.root/'foreign'/(self.scenario+'.sqlite3'),self.db/(self.scenario+'.sqlite3'))
-        app=self.app();server=make_server(app,port=0)
+        app=self.app();server=make_server(app,port=0,demo_identities=True)
         thread=threading.Thread(target=server.serve_forever,kwargs={'poll_interval':.01},daemon=True);thread.start()
         try:
             for attempt in range(2):
                 with self.subTest(attempt=attempt),self.assertRaises(urllib.error.HTTPError) as raised:
-                    urllib.request.urlopen(f'http://127.0.0.1:{server.server_port}/api/state',timeout=5)
+                    urllib.request.urlopen(urllib.request.Request(f'http://127.0.0.1:{server.server_port}/api/state',headers={'Cookie':server.portal.login('operator',None)[1].split(';')[0]}),timeout=5)
                 with raised.exception as response:
                     self.assertEqual(response.code,400)
                     self.assertIn('recovery_binding_mismatch:input_sha256',json.load(response)['reason'])

@@ -23,12 +23,14 @@ class WebAPITests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.app = SimulationApp(EXAMPLE, Path(self.temp.name) / 'db',
                                  model_dir=Path(self.temp.name) / 'missing_models', project_root=self.temp.name)
-        self.server = make_server(self.app, port=0)
+        self.server = make_server(self.app, port=0, demo_identities=True)
         self.thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': 0.01}, daemon=True)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
         self.addCleanup(self.temp.cleanup)
         self.addCleanup(self.stop_server)
+        self.cookie = ''
+        self.request('/api/session/demo', {'identity': 'operator'})
 
     def stop_server(self):
         self.server.shutdown()
@@ -39,12 +41,13 @@ class WebAPITests(unittest.TestCase):
     def request(self, path, body=None, expected=200):
         data = None if body is None else json.dumps(body, allow_nan=False).encode()
         request = urllib.request.Request(self.base + path, data=data,
-                                         headers={'Content-Type': 'application/json'} if data else {})
+                                         headers={'Content-Type': 'application/json', 'X-KLT-Request':'1', 'Cookie':self.cookie})
         try:
             response = urllib.request.urlopen(request, timeout=15)
         except urllib.error.HTTPError as exc:
             response = exc
         with response:
+            if response.headers.get('Set-Cookie'): self.cookie=response.headers['Set-Cookie'].split(';')[0]
             self.assertEqual(response.status, expected, response.read().decode() if response.status != expected else '')
             payload = response.read()
             return json.loads(payload) if 'application/json' in response.headers.get('Content-Type', '') else payload.decode()
@@ -52,8 +55,9 @@ class WebAPITests(unittest.TestCase):
     def test_static_ui_and_state_use_live_backend_without_optional_models(self):
         health = self.request('/health')
         self.assertEqual(health, {'status': 'ok', 'flight_control_connected': False})
-        self.assertIn('城空智护', self.request('/'))
-        self.assertIn('fetch(path', self.request('/app.js'))
+        self.assertIn('空路通', self.request('/'))
+        self.assertIn('/assets/', self.request('/biz/maintenance'))
+        self.request('/api/missing-route', expected=404)
         scenarios = self.request('/api/scenarios')
         self.assertEqual(scenarios['data_kind'], 'synthetic')
         self.assertEqual(set(scenarios['scenarios']), {'on_time_confirmed', 'delayed_confirmed', 'end_unconfirmed'})

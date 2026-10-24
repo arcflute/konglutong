@@ -30,12 +30,14 @@ def main(argv=None):
     parser.add_argument('--host',default='127.0.0.1')
     parser.add_argument('--port',type=int,default=8765)
     parser.add_argument('--db-dir',default='runs/web')
+    parser.add_argument('--demo-identities',action='store_true')
     args=parser.parse_args(argv)
     try:
         if args.command=='serve':
             from .web import main as serve
             options=['--input',args.input,'--host',args.host,'--port',str(args.port),'--db-dir',args.db_dir]
             if args.model_dir:options+=['--model-dir',args.model_dir]
+            if args.demo_identities:options+=['--demo-identities']
             if args.planning_mode:options+=['--planning-mode',args.planning_mode]
             if args.action_policy:options+=['--action-policy',args.action_policy]
             serve(options)

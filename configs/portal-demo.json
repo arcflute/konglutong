@@ -1,0 +1,15 @@
+{
+  "schema_version": "konglutong-local-access-v1",
+  "organization": {"id":"park_operator","name":"园区巡检运营组（演示）"},
+  "identities": [
+    {"id":"operator","name":"林工 · 运营维护员","role":"biz","organization_id":"park_operator"},
+    {"id":"reviewer","name":"周老师 · 园区研判员","role":"gov","regions":"all_configured_scenarios"},
+    {"id":"resident","name":"陈同学 · 个人演示","role":"personal"},
+    {"id":"resident_b","name":"李同学 · 独立个人身份","role":"personal"},
+    {"id":"other_operator","name":"其他机构 · 隔离演示","role":"biz","organization_id":"other_org"}
+  ],
+  "shared_task_ids": ["task_1","task_2"],
+  "published_object_ids": ["building_1","crane_1","lifting_1"],
+  "publication_note": "仅预先列出的合成环境对象获准公开；企业新材料与新增对象不自动发布。",
+  "display_anchor": {"longitude_deg":0,"latitude_deg":0,"ellipsoid_height_m":0,"version":"synthetic-enu-v1","status":"合成场景锚点，非真实地点"}
+}
