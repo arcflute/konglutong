@@ -122,6 +122,7 @@ class PersistentServiceAdapter:
 def snapshot_session(session):
     data={k:copy.deepcopy(session[k]) for k in ('result','candidates','evidence_results','learned','inflight',
                                                'import_audit','field_audit','field_requests')}
+    data['candidate_order']=list(session['candidates'])
     # Additional explicit execution options may be added by the planner.
     for key in ('planning_mode','strategy','planner_mode','action_order'):
         if key in session:data[key]=copy.deepcopy(session[key])
@@ -135,6 +136,13 @@ def restore_session(session,payload):
     for key in ('result','candidates','evidence_results','learned','inflight','import_audit','field_audit','field_requests',
                 'planning_mode','strategy','planner_mode','action_order'):
         if key in payload:session[key]=copy.deepcopy(payload[key])
+    # JSON checkpoint serialization sorts object keys; preserve chronology as
+    # data rather than relying on a mapping's insertion order after restart.
+    if 'candidate_order' in payload:
+        order=payload['candidate_order']
+        if len(order)!=len(set(order)) or set(order)!=set(session['candidates']):
+            raise ValueError('invalid_checkpoint_candidate_order')
+        session['candidates']={key:session['candidates'][key] for key in order}
     session['agent'].proposals=copy.deepcopy(payload.get('agent',{}).get('proposals',{}))
     session['agent'].audit=copy.deepcopy(payload.get('agent',{}).get('audit',[]))
     if payload.get('importer') is not None:
