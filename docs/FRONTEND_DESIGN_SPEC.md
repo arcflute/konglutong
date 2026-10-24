@@ -619,3 +619,8 @@
 6. W3C 非文字对比度：<https://www.w3.org/WAI/WCAG21/Understanding/non-text-contrast.html>。
 
 最终交付判定：三端确有各自完整页面和视觉风格，页面连接真实服务，同一施工变化能贯通企业维护、政府研判和个人公开提示，且保留来源、版本、权限和适用条件。
+
+
+## v1.1 实施验收索引（2026-10-24）
+
+本文前述清单保留为原始设计要求，不以设计文档本身证明实现完成。当前16页、实际API、浏览器截图、回归结果及尚未验证条件见[FRONTEND_ACCEPTANCE](FRONTEND_ACCEPTANCE.md)、[FRONTEND_API_MAP](FRONTEND_API_MAP.md)。运行/恢复见[FRONTEND_IMPLEMENTATION](FRONTEND_IMPLEMENTATION.md)，三端演示见[FRONTEND_DEMO](FRONTEND_DEMO.md)。当前可复现证据在独立runs/frontend-v1；原模型、数据与三层技术路线保留。

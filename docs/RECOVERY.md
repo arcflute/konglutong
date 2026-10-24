@@ -19,7 +19,7 @@ world/采纳事务与checkpoint是两个事务：若异常退出恰好发生在w
 ```bash
 cd /root/autodl-tmp/chengkong-zhihu
 .venv/bin/chengkong serve --input examples/park_crane_synthetic.json \
-  --db-dir runs/web-round4-demo --host 127.0.0.1 --port 8765
+  --demo-identities --db-dir runs/web-round4-demo --host 127.0.0.1 --port 8765
 # 操作后 Ctrl+C 正常停止；相同输入、代码和模型再次执行同一条命令。
 ```
 
@@ -35,7 +35,7 @@ cd /root/autodl-tmp/chengkong-zhihu
 .venv/bin/python -m chengkong.recovery restore \
   --source runs/backups/round4-demo-001 --destination runs/web-round4-restored-001
 .venv/bin/chengkong serve --input examples/park_crane_synthetic.json \
-  --db-dir runs/web-round4-restored-001 --host 127.0.0.1 --port 8765
+  --demo-identities --db-dir runs/web-round4-restored-001 --host 127.0.0.1 --port 8765
 ```
 
 两个destination都必须不存在。恢复先验证所有文件校验值与完整性，不会覆盖现有演示库。备份包含SQLite与绑定信息；输入文件、模型和代码需单独保留其原件/本地提交。本工具不复制模型或环境。若首次使用模型，恢复启动同样追加原 `--model-dir`。
@@ -63,3 +63,12 @@ cd /root/autodl-tmp/chengkong-zhihu
 追加9项专项实际通过（`runs/round4/recovery-audit-fixes.txt`），覆盖连续请求拒绝、等待时段95→100秒、同机驻留开始249→254秒、初始化/采纳/环境替换/重开数据库、注入事务失败全部回滚，以及既有版本和并发写入事务。
 
 上述审查修复后的完整进程级演示已再次在新目录实际通过，最终证据为 `runs/round4/recovery-process-final/`（3进程、15次HTTP、所有服务正常退出）；原目录保留不覆盖。
+
+
+## 桌面v1.1增量
+
+当前HTTP私有接口需要服务端会话；本地演示启动加`--demo-identities`并从门户选择身份，不再匿名调用。`scripts/demo_recovery.py`已同步显式登录和请求头，实际在新`runs/frontend-v1/recovery-process/`完成3进程18HTTP（含3次登录）。原15HTTP历史记录保留。
+
+新`_portal.sqlite3`保存门户会话哈希、核查、公开版本/可见性审计、关注/通知/已读、查询/反馈和报告；目录备份自动包含。不同用户记录有服务器范围检查。正常模式禁用demo会清除演示会话，数据记录仍保存；配置哈希改变拒绝复用，要求新目录。恢复包含候选显式次序，避免JSON key排序改变候选列表。
+
+此处旧round4库命令是历史示例，当前前端演示请使用新的frontend-v1目录，详见FRONTEND_IMPLEMENTATION。备份只保存token哈希，但仍含个人与机构记录，按项目数据保管；不会复制代码、模型、输入或前端构建。
