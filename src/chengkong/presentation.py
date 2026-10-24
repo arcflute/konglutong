@@ -10,17 +10,23 @@ def spatial_view(world,time_s=None):
         raise ValueError('view_time_must_be_finite_seconds')
     if not world['horizon_s'][0]<=at<=world['horizon_s'][1]:raise ValueError('view_time_outside_horizon')
     from .world import generate_constraints
-    from .motion import motion_snapshot
+    from .motion import motion_snapshot,geometry_at
+    from .execution import frozen_prefix
     objects=[];building_ids={b['id'] for b in world['buildings']}
     # The constraint history, not today's object geometry/installed flag, decides
     # what occupied this effective time under the currently available knowledge.
     for c in generate_constraints(world):
-        if 'motion' in c or not c['interval_s'][0]<=at<c['interval_s'][1]:
+        if not c['interval_s'][0]<=at<c['interval_s'][1]:
             continue
+        # Physical moving components are emitted by motion_snapshot below.
+        # Moving activity protection is a separate versioned constraint layer.
+        if 'motion' in c and c['kind']!='activity':continue
+        geometry=(geometry_at(c['motion'],at) if c['motion'].get('motion_status')=='supported' else None) if 'motion' in c else c['geometry']
         component=('building' if c['object_id'] in building_ids else
                    'activity_protection' if c['kind']=='activity' else 'physical_'+c['id'].split(':')[2])
         objects.append({'id':c['object_id'],'component':component,'constraint_id':c['id'],
-            'geometry':copy.deepcopy(c['geometry']),'geometry_status':c['geometry_status'],
+            'geometry':copy.deepcopy(geometry),'geometry_status':c['geometry_status'],
+            'protection_semantics':c.get('protection_semantics'),
             'source_ids':list(c['source_ids']),'interval_s':list(c['interval_s']),
             'environment_version':c['environment_version'],
             'data_kind':'conservative_envelope' if c['kind']=='activity' else world.get('data_kind','synthetic')})
@@ -31,6 +37,7 @@ def spatial_view(world,time_s=None):
             'state_revision':world.get('state_revision',1),'known_as_of_s':world['as_of_s'],'view_time_s':at,
             'temporal_status':'prediction_from_current_known_rules' if at>world['as_of_s'] else 'reconstructed_from_current_knowledge' if at<world['as_of_s'] else 'current_known_state',
             'objects':objects,'motion_snapshot':snapshot,'bounds_m':world['bounds_m'],
+            'executed_prefixes':{t['id']:frozen_prefix(t,world['as_of_s']) for t in world['tasks']},
             'coordinate_system':world['coordinate_system'],'data_kind':world.get('data_kind','synthetic'),
             'note':'Preview changes neither information arrival nor the live clock; use history for what was known at that time.'}
 

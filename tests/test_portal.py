@@ -91,3 +91,74 @@ class PortalTests(unittest.TestCase):
         self.server=make_server(self.app,port=0,demo_identities=True);self.thread=threading.Thread(target=self.server.serve_forever,kwargs={'poll_interval':.01},daemon=True);self.thread.start();self.base=f'http://127.0.0.1:{self.server.server_port}'
         records=self.call('/api/personal/records');self.assertEqual(records['feedback'][0]['id'],f['id']);self.assertEqual(records['follows'],[self.sid])
         self.login('operator');self.assertEqual(self.context()['result']['world']['activities'][0]['completion_status'],'not_confirmed')
+
+    def test_supplied_candidate_versions_are_checked_and_cannot_mutate_plan(self):
+        self.login('operator');before=self.context();candidate=before['result']['candidates'][0]
+        refused=self.call('/api/adopt',{'candidate_id':candidate['id'],'base_environment_version':999,
+            'base_reservation_version':candidate['base_reservation_version'],'base_plan_versions':candidate['base_plan_versions']})
+        self.assertEqual(refused['outcome']['status'],'client_version_mismatch');self.assertFalse(refused['outcome']['adopted'])
+        self.assertEqual(before['result']['world'],self.context()['result']['world'])
+
+    def test_private_new_object_is_not_published_and_shared_prefix_does_not_leak(self):
+        self.login('operator');self.call('/api/advance',{'scenario':self.sid,'time_s':120})
+        self.call('/api/event',{'scenario':self.sid,'event':{'id':'private-new','kind':'facility_added','effective_at_s':120,'observed_at_s':120,'source_kind':'private-source',
+            'facility':{'id':'PRIVATE_FACILITY','physical_geometry':[{'type':'aabb','min_m':[1,1,0],'max_m':[3,3,1]}]}}})
+        self.login('reviewer');gov=self.call('/api/portal/view?scenario=end_unconfirmed&time_s=180');self.assertNotIn('task_3',json.dumps(gov));self.assertIn('task_1',gov['executed_prefixes'])
+        self.login('resident');public=self.context();self.assertNotIn('PRIVATE_FACILITY',json.dumps(public));self.assertNotIn('executed_prefixes',json.dumps(public))
+        self.call('/api/portal/view?scenario=end_unconfirmed&time_s=180',status=403)
+
+    def test_closed_demo_mode_rejects_previously_valid_cookie_after_restart(self):
+        self.login('operator');self.context();self.stop()
+        self.app=SimulationApp(ROOT/'examples/park_crane_synthetic.json',Path(self.tmp.name)/'db')
+        self.server=make_server(self.app,port=0,demo_identities=False);self.thread=threading.Thread(target=self.server.serve_forever,kwargs={'poll_interval':.01},daemon=True);self.thread.start();self.base=f'http://127.0.0.1:{self.server.server_port}'
+        self.call('/api/state',status=401);self.call('/api/session/demo',{'identity':'operator'},403)
+        self.assertEqual(self.call('/api/session')['identities'],[])
+
+    def test_presentation_moving_protection_has_hand_calculable_pose_and_preview_is_read_only(self):
+        from chengkong.world import load_example,visible_world
+        from chengkong.presentation import spatial_view
+        w=visible_world(load_example(ROOT/'examples/motion_crane_synthetic.json'),'end_unconfirmed',60)
+        before=copy.deepcopy(w);view=spatial_view(w,180)
+        boom=next(o for o in view['objects'] if o['component']=='activity_protection' and ':boom:' in o['constraint_id'])
+        # Program linearly rotates -90 to +90 over [120,240]: at180 it points east.
+        self.assertEqual(boom['geometry']['start_m'],[500,400,56])
+        self.assertEqual(boom['geometry']['end_m'],[560,400,56])
+        self.assertEqual(boom['geometry']['radius_m'],7.5) # radius1.5 + clearance6
+        self.assertEqual(w,before);self.assertEqual(view['known_as_of_s'],60)
+        self.assertTrue(all(not p for p in view['executed_prefixes'].values()))
+
+    def test_historical_effective_time_preview_uses_then_known_world(self):
+        self.login('operator');before=self.context();history_id=before['history'][0]['id']
+        self.call('/api/advance',{'scenario':self.sid,'time_s':360})
+        current=self.app._session(self.sid)['store'].current_world()
+        viewed=self.call('/api/portal/replay?scenario=end_unconfirmed&id='+str(history_id)+'&time_s=400')
+        self.assertEqual(viewed['spatial_view']['known_as_of_s'],60)
+        self.assertEqual(viewed['spatial_view']['view_time_s'],400)
+        self.assertEqual(self.app._session(self.sid)['store'].current_world(),current)
+
+    def test_revocation_survives_projection_refresh_and_redacts_inbox_and_saved_queries(self):
+        self.login('resident');self.context()
+        self.call('/api/personal/follow',{'scenario':self.sid,'following':True})
+        self.call('/api/personal/query',{'scenario':self.sid,'from_s':60,'to_s':600})
+        control={'scenario':self.sid,'object_id':'lifting_1','visible':False,'reason':'撤下示例摘要，待重新核对'}
+        self.call('/api/gov/publication',control,403)
+        self.login('operator')
+        self.call('/api/event',{'scenario':self.sid,'event':{'id':'notice','kind':'planned_end_changed','activity_id':'lifting_1','observed_at_s':60,'effective_at_s':60,'new_planned_end_s':610,'source_kind':'test'}})
+        self.call('/api/gov/publication',control,403)
+        before=copy.deepcopy(self.context()['result']['world'])
+        self.login('reviewer');self.call('/api/gov/publication',{**control,'object_id':'new-private-object','visible':True},400)
+        self.assertFalse(self.call('/api/gov/publication',control)['world_updated'])
+        self.assertEqual(self.app._session(self.sid)['store'].current_world(),before)
+        self.login('resident')
+        for _ in range(2):self.assertEqual(self.context()['records'],[])
+        public=self.context();self.assertNotIn('lifting_1',json.dumps(public['spatial_view']['objects']))
+        self.assertTrue(any(o['id']=='crane_1' for o in public['spatial_view']['objects']))
+        records=self.call('/api/personal/records');self.assertEqual(records['notifications'][0]['status'],'revoked')
+        self.assertIsNone(records['notifications'][0]['record']);self.assertEqual(records['queries'][0]['result']['records'],[])
+        self.assertEqual(records['queries'][0]['result']['revoked_record_count'],1)
+        self.stop();self.app=SimulationApp(ROOT/'examples/park_crane_synthetic.json',Path(self.tmp.name)/'db')
+        self.server=make_server(self.app,port=0,demo_identities=True);self.thread=threading.Thread(target=self.server.serve_forever,kwargs={'poll_interval':.01},daemon=True);self.thread.start();self.base=f'http://127.0.0.1:{self.server.server_port}'
+        self.assertEqual(self.context()['records'],[])
+        self.login('reviewer');self.call('/api/gov/publication',{**control,'visible':True,'reason':'恢复原已获准范围'})
+        self.login('resident');self.assertEqual(len(self.context()['records']),1)
+        records=self.call('/api/personal/records');self.assertEqual(len(records['notifications']),2)

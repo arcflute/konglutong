@@ -1,6 +1,7 @@
 """Actual local server stop/restart/backup/restore; refuses existing output dir."""
 from __future__ import annotations
 import argparse
+import http.cookiejar
 import json
 from pathlib import Path
 import signal
@@ -21,12 +22,13 @@ def run(output,model_dir=None):
     if output.exists():raise ValueError('recovery_demo_output_must_not_exist')
     output.mkdir(parents=True)
     records=[];process=None;stream=None;base=None
+    opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     def start(db,label):
         nonlocal process,stream,base
         with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         base=f'http://127.0.0.1:{port}'
         command=[sys.executable,'-m','chengkong.web','--input',str(ROOT/'examples/park_crane_synthetic.json'),
-                 '--db-dir',str(db),'--host','127.0.0.1','--port',str(port)]
+                 '--db-dir',str(db),'--demo-identities','--host','127.0.0.1','--port',str(port)]
         if model_dir:command+=['--model-dir',str(model_dir)]
         stream=(output/(label+'.log')).open('w')
         process=subprocess.Popen(command,cwd=ROOT,stdout=stream,stderr=subprocess.STDOUT)
@@ -36,6 +38,7 @@ def run(output,model_dir=None):
             try:
                 with urllib.request.urlopen(base+'/health',timeout=1) as response:
                     assert json.load(response)['status']=='ok'
+                request('/api/session/demo',{'identity':'operator'})
                 return
             except (OSError,urllib.error.URLError):time.sleep(.05)
         raise AssertionError('server_start_timeout:'+label)
@@ -50,8 +53,8 @@ def run(output,model_dir=None):
         if stream:stream.close();stream=None
     def request(path,body=None):
         started=time.perf_counter();data=json.dumps(body).encode() if body is not None else None
-        req=urllib.request.Request(base+path,data=data,headers={'Content-Type':'application/json'})
-        with urllib.request.urlopen(req,timeout=30) as response:reply=json.load(response)
+        req=urllib.request.Request(base+path,data=data,headers={'Content-Type':'application/json','X-KLT-Request':'1'})
+        with opener.open(req,timeout=30) as response:reply=json.load(response)
         records.append({'path':path,'method':'POST' if body is not None else 'GET','elapsed_s':time.perf_counter()-started})
         return reply
     try:

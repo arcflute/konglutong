@@ -167,10 +167,13 @@ class SimulationApp:
             session['store'].replace_world(updated,world.get('state_revision',1))
             return self.state(scenario,True)
 
-    def adopt(self,scenario,identifier):
+    def adopt(self,scenario,identifier,submitted_versions=None):
         with self.lock:
             session=self._session(scenario)
-            outcome=session['store'].adopt(session['store'].get_candidate(identifier),explicit=True)
+            candidate=session['store'].get_candidate(identifier)
+            if submitted_versions is not None and any(submitted_versions.get(k)!=candidate.get(k) for k in ('base_environment_version','base_reservation_version','base_plan_versions')):
+                return {'outcome':{'adopted':False,'status':'client_version_mismatch','reason':'submitted_versions_do_not_match_candidate'},'state':self.state(scenario)}
+            outcome=session['store'].adopt(candidate,explicit=True)
             return {'outcome':outcome,'state':self.state(scenario,outcome['adopted'])}
 
     def evidence(self,scenario,request_id,source=None,queries_used=0):
@@ -226,7 +229,7 @@ class SimulationApp:
             if outcome['world_updated']:session['store'].replace_world(updated,world.get('state_revision',1))
             return {'outcome':outcome,'state':self.state(scenario,outcome['world_updated'])}
 
-    def replay(self,scenario,history_id):
+    def replay(self,scenario,history_id,view_time_s=None):
         with self.lock:
             session=self._session(scenario)
             entry=next((h for h in session['store'].history() if h['id']==history_id),None)
@@ -234,7 +237,7 @@ class SimulationApp:
             world=entry['after']
             # Reproduce the recorded state; never write it over current state.
             return {'read_only':True,'history_entry':entry,
-                    'spatial_view':spatial_view(world),
+                    'spatial_view':spatial_view(world,view_time_s),
                     'timeline':event_timeline(world,[h for h in session['store'].history() if h['id']<=history_id]),
                     'result':analyze_world(world,planning_budget={'max_orders':0,'max_searches':0,'timeout_s':0})}
 
@@ -386,7 +389,10 @@ def make_server(app,host='127.0.0.1',port=8765,*,demo_identities=False,frontend_
                     portal.authorize(subject)
                     if path=='/api/portal/scenarios':return self._json(portal.scenarios(subject))
                     if path=='/api/portal/context':return self._json(portal.context(subject,scenario))
-                    if path=='/api/portal/replay':return self._json(portal.replay(subject,scenario,int(query['id'][0])))
+                    if path=='/api/portal/view':
+                        portal.authorize(subject,scenario,('gov','biz'))
+                        return self._json(portal.view(subject,scenario,float(query['time_s'][0])))
+                    if path=='/api/portal/replay':return self._json(portal.replay(subject,scenario,int(query['id'][0]),float(query['time_s'][0]) if 'time_s' in query else None))
                     if path=='/api/gov/notes':
                         portal.authorize(subject,scenario,('gov',));return self._json(portal.notes(scenario))
                     if path=='/api/personal/records':return self._json(portal.personal_records(subject))
@@ -430,6 +436,7 @@ def make_server(app,host='127.0.0.1',port=8765,*,demo_identities=False,frontend_
                 subject=self._subject();portal.authorize(subject)
                 scenario=body.get('scenario','end_unconfirmed' if 'end_unconfirmed' in app.scenarios else next(iter(app.scenarios)))
                 if self.path=='/api/gov/notes':return self._json(portal.add_note(subject,body))
+                if self.path=='/api/gov/publication':return self._json(portal.set_publication(subject,body))
                 if self.path.startswith('/api/personal/'):
                     return self._json(portal.personal_action(subject,self.path.rsplit('/',1)[-1],body))
                 if self.path=='/api/reports':return self._json(portal.create_report(subject,body))
@@ -440,7 +447,7 @@ def make_server(app,host='127.0.0.1',port=8765,*,demo_identities=False,frontend_
                     value=app.state(scenario,True)
                 elif self.path=='/api/advance':value=app.advance(scenario,float(body['time_s']))
                 elif self.path=='/api/event':value=app.event(scenario,body['event'])
-                elif self.path=='/api/adopt':value=app.adopt(scenario,body['candidate_id'])
+                elif self.path=='/api/adopt':value=app.adopt(scenario,body['candidate_id'],body if any(k in body for k in ('base_environment_version','base_reservation_version','base_plan_versions')) else None)
                 elif self.path=='/api/evidence':value=app.evidence(scenario,body['request_id'],body.get('source'))
                 elif self.path=='/api/material':value=app.material(scenario,body['records'],body.get('mock_response'))
                 elif self.path=='/api/material/apply':value=app.accept_material(scenario,body['proposal_id'])
