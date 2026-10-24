@@ -8,6 +8,8 @@
 
 ## 构建与启动
 
+品牌图标已统一接入用户提供的 `docs/LOGO.png`，通过共享组件适配三端主题；素材处理、截图及专项复现命令见 [LOGO 接入与验收](docs/LOGO_INTEGRATION.md)。
+
 在本服务器项目根执行。已有项目独立`.venv`，复用现有环境；新环境安装沿用`bash scripts/bootstrap.sh`。规则流程不需要CUDA或学习依赖。
 
 ```bash

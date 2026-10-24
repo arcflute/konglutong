@@ -127,3 +127,9 @@
 恢复开发先读README、FRONTEND_IMPLEMENTATION/API_MAP/ACCEPTANCE/DEMO及git status。现有runs/frontend-v1各库绑定输入/代码/模型/权限配置；新代码用新目录，旧证据只读保留。前端构建在frontend/dist（不入Git），本机Node位于chengkong-data/frontend-toolchain；现有.venv与模型继续复用。旧browser_round3/4脚本属于旧UI，不再用于当前三端验收。
 
 未接入/未验证：真实VLM/真实历史施工与现场效果、生产IdP、第三方园区测量地图、跨GPU/浏览器/OS缩放性能、完整无障碍审计。复杂摆动、任意坐标/字段、真实飞控和多实例仍保留原限制。下一步所需：最终3.2、许可明确且有单位/坐标/高度/时刻的真实材料、真实机构身份范围和IdP协议、项目内明确服务凭据/预算、目标浏览器和设备条件。没有本轮待继续的独立工程任务。
+
+# 用户新 LOGO 已接入（当前恢复位置）
+
+起点1cd35a9，原有用户文件docs/LOGO.png已读取图像和PNG元数据：1364×1065 RGB、近白背景、蓝青渐变、无文字。原件和前端副本hash一致；共享BrandLogo对背景与图形分开处理，通过SVG两层蒙版保留轮廓和局部渐变并跟随既有主题。覆盖门户页头/页脚、政府5页、企业6页、个人4页及折叠状态，名称与返回导航保留，旧品牌Route引用和badge样式移除。
+
+生产构建与138次实际浏览器布局状态检查通过，三档桌面视口、DPR1/默认100%缩放，0页面异常/console错误。源资源和HTTP资源一致，docs访问404；原HTTP静态服务专项通过。截图位于runs/logo-v1/browser-first及details，后者补拍原首轮未滚动到目标的页脚。完整交付与复现命令见LOGO_INTEGRATION；本地提交见git log，没有推送。没有覆盖历史数据、模型或数据库；临时检查服务已关闭。其它浏览器/OS缩放未验收，本次没有重跑整套算法回归。

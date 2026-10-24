@@ -342,3 +342,9 @@ browser-edges-verified/report.json另验证迟到真实场景/运动响应、焦
 前端tsc+生产build通过，Cesium约4.93MB块警告未隐藏；compileall、pip check、diff实际通过，CLI motion输入实际1候选；release-checks.json及cli-motion-release.json。186旧round2/3原数据/权重/清单hash全部一致；其它旧实验目录未写入。详细逐页矩阵、截图、视口DPR/缩放和命令见FRONTEND_ACCEPTANCE。
 
 未验证：真实多模态、现实园区与设备数据、生产身份服务、实体显示器OS缩放/跨GPU/跨浏览器性能、完整无障碍审计。1920×947是工具栏扣减后的内容高度模拟，不冒充实体显示器测量。地图锚点为虚构ENU，本轮没有真实飞行、法定审批、外部通知、公网部署、新模型训练或驱动变更。
+
+## 新 LOGO 专项验收
+
+从1cd35a9继续，本次仅品牌组件、资源与记录修改。实际生产构建通过；Chromium140 / Playwright1.55 / SwiftShader / DPR1 / 100%默认缩放，1920×1080、1600×900、1366×768下覆盖16页、身份切换、深层路由与刷新、展开/折叠、返回入口，共138次布局状态检查通过。资源全200，docs原图访问404；0页面脚本异常、0console错误；加载前后无位置变化、比例正确、页头无裁切。真实渲染确认近白背景无漏底，原图核心图形与渐变保留，三端图形颜色不同。
+
+证据 `runs/logo-v1/browser-first/report.json`及13张首轮截图；首轮页脚截图未滚动到目标，随后用元素截图补拍并保存 `runs/logo-v1/details/report.json`及4张页脚/品牌近景，没有覆盖原记录。原件/源资源/HTTP资源SHA256一致。原HTTP静态服务专项1项通过，未重复全部算法回归。详细截图索引、准确命令和跨浏览器未验证范围见 [LOGO_INTEGRATION](LOGO_INTEGRATION.md)。
